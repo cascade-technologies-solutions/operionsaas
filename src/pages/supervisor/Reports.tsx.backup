@@ -1,0 +1,896 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Layout } from '@/components/Layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
+import { 
+  FileText, 
+  Download, 
+  Filter, 
+  Calendar as CalendarIcon,
+  TrendingUp,
+  Package,
+  Users,
+  Activity,
+  BarChart3,
+  Loader2,
+  RefreshCw
+} from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { format as dateFnsFormat, subDays } from 'date-fns';
+import { toast } from 'sonner';
+import { reportsService, ReportFilters, TrendData, EmployeePerformanceData } from '@/services/api/reports.service';
+import { userService } from '@/services/api/user.service';
+import { productService } from '@/services/api/product.service';
+import { processService } from '@/services/api/process.service';
+import { useAuthStore } from '@/stores/authStore';
+import { User, Product, Process } from '@/types';
+
+interface ReportData {
+  id: string;
+  type: 'production' | 'efficiency' | 'rejection' | 'attendance';
+  title: string;
+  dateRange: { start: Date; end: Date };
+  filters: {
+    productId?: string;
+    processId?: string;
+    employeeId?: string;
+  };
+  data: any[];
+  createdAt: Date;
+}
+
+export default function Reports() {
+  const { user } = useAuthStore();
+  const [reportType, setReportType] = useState<string>('production');
+  const [dateRange, setDateRange] = useState<{start: Date | undefined, end: Date | undefined}>({
+    start: subDays(new Date(), 7),
+    end: new Date(),
+  });
+  const [filters, setFilters] = useState({
+    productId: 'all',
+    processId: 'all',
+    employeeId: 'all',
+  });
+  const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dropdownLoading, setDropdownLoading] = useState(false);
+  
+  // Dropdown data state
+  const [products, setProducts] = useState<Product[]>([]);
+  const [processes, setProcesses] = useState<Process[]>([]);
+  const [employees, setEmployees] = useState<User[]>([]);
+  
+  // Filtered processes based on selected product
+  const filteredProcesses = useMemo(() => {
+    if (filters.productId === 'all') {
+      return processes;
+    }
+    return processes.filter(process => 
+      process.productId === filters.productId || 
+      (process.productId as any)?._id === filters.productId
+    );
+  }, [processes, filters.productId]);
+  
+  // Real data state
+  const [trendData, setTrendData] = useState<TrendData[]>([]);
+  const [employeeData, setEmployeeData] = useState<EmployeePerformanceData[]>([]);
+  const [summary, setSummary] = useState({
+    totalProduction: 0,
+    totalEfficiency: 0,
+    totalRejections: 0,
+    activeEmployees: 0,
+    pendingValidations: 0,
+  });
+
+
+  useEffect(() => {
+    if (user?.factoryId) {
+      loadDropdownData();
+      loadReportData();
+    }
+  }, [user?.factoryId, dateRange, filters, reportType, loadDropdownData, loadReportData]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    if (!user?.factoryId) return;
+    
+    const interval = setInterval(() => {
+      loadReportData();
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => clearInterval(interval);
+  }, [user?.factoryId, loadReportData]);
+
+  // Reset process selection when product changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, processId: 'all' }));
+  }, [filters.productId]);
+
+  // Monitor summary state changes
+  useEffect(() => {
+    // Summary state monitoring can be used for additional side effects if needed
+  }, [summary]);
+
+  const loadReportData = useCallback(async () => {
+    if (!user?.factoryId) {
+      return;
+    }
+    
+    setDataLoading(true);
+    try {
+      const reportFilters: ReportFilters = {
+        startDate: dateRange.start?.toISOString(),
+        endDate: dateRange.end?.toISOString(),
+        productId: filters.productId !== 'all' ? filters.productId : undefined,
+        processId: filters.processId !== 'all' ? filters.processId : undefined,
+        employeeId: filters.employeeId !== 'all' ? filters.employeeId : undefined,
+        factoryId: user.factoryId,
+      };
+
+
+      // Load data based on report type
+      let trends: TrendData[] = [];
+      let employeePerformance: EmployeePerformanceData[] = [];
+      let teamPerformance = { summary: {
+        totalProduction: 0,
+        totalEfficiency: 0,
+        totalRejections: 0,
+        activeEmployees: 0,
+        pendingValidations: 0,
+      }};
+
+      // Load comprehensive report data first (this includes all data types)
+      try {
+        const comprehensiveData = await reportsService.getComprehensiveReport(reportFilters);
+        
+        if (comprehensiveData) {
+          trends = comprehensiveData.trends || [];
+          employeePerformance = comprehensiveData.employeePerformance || [];
+          
+          // Use comprehensive summary if available
+          if (comprehensiveData.summary) {
+            teamPerformance = { summary: comprehensiveData.summary };
+          }
+          
+        }
+      } catch (error) {
+        // Failed to fetch comprehensive report
+      }
+
+      // If no data found for user's factory, try without factory filter (temporary debug)
+      if ((!trends || trends.length === 0) && (!employeePerformance || employeePerformance.length === 0)) {
+        try {
+          const debugFilters = { ...reportFilters };
+          delete debugFilters.factoryId; // Remove factory filter
+          
+          const debugData = await reportsService.getComprehensiveReport(debugFilters);
+          
+          if (debugData && (debugData.trends?.length > 0 || debugData.employeePerformance?.length > 0)) {
+            trends = debugData.trends || [];
+            employeePerformance = debugData.employeePerformance || [];
+            if (debugData.summary) {
+              teamPerformance = { summary: debugData.summary };
+            }
+          }
+        } catch (error) {
+          // Debug fetch failed
+        }
+      }
+
+      // If comprehensive report failed or returned no data, try individual endpoints
+      if (!trends || trends.length === 0) {
+        try {
+          trends = await reportsService.getProductionTrends(reportFilters);
+        } catch (error) {
+          trends = [];
+        }
+      }
+
+      // If still no employee performance data, try individual endpoint
+      if (!employeePerformance || employeePerformance.length === 0) {
+        try {
+          employeePerformance = await reportsService.getEmployeePerformance(reportFilters);
+        } catch (error) {
+          employeePerformance = [];
+        }
+      }
+
+
+      // Load team performance data
+      const userId = user._id || user.id;
+      if (userId) {
+        try {
+          teamPerformance = await reportsService.getTeamPerformance(userId, reportFilters);
+        } catch (error) {
+          // Failed to fetch team performance
+        }
+      }
+
+      // Calculate summary based on report type and loaded data
+      let calculatedSummary = {
+        totalProduction: 0,
+        totalEfficiency: 0,
+        totalRejections: 0,
+        activeEmployees: 0,
+        pendingValidations: 0,
+      };
+
+
+      if (reportType === 'production') {
+        calculatedSummary.totalProduction = trends.reduce((sum, item) => sum + (item.production || 0), 0);
+        calculatedSummary.totalEfficiency = trends.length > 0 ? trends.reduce((sum, item) => sum + (item.efficiency || 0), 0) / trends.length : 0;
+        calculatedSummary.totalRejections = trends.reduce((sum, item) => sum + (item.rejection || 0), 0);
+
+      } else if (reportType === 'efficiency') {
+        calculatedSummary.totalEfficiency = trends.length > 0 ? trends.reduce((sum, item) => sum + (item.efficiency || 0), 0) / trends.length : 0;
+        calculatedSummary.totalProduction = trends.reduce((sum, item) => sum + (item.production || 0), 0);
+        calculatedSummary.totalRejections = trends.reduce((sum, item) => sum + (item.rejection || 0), 0);
+
+      } else if (reportType === 'rejection') {
+        calculatedSummary.totalRejections = trends.reduce((sum, item) => sum + (item.rejection || 0), 0);
+        calculatedSummary.totalProduction = trends.reduce((sum, item) => sum + (item.production || 0), 0);
+        calculatedSummary.totalEfficiency = trends.length > 0 ? trends.reduce((sum, item) => sum + (item.efficiency || 0), 0) / trends.length : 0;
+
+      } else if (reportType === 'attendance') {
+        calculatedSummary.activeEmployees = employeePerformance.length;
+        calculatedSummary.totalProduction = trends.reduce((sum, item) => sum + (item.production || 0), 0);
+        calculatedSummary.totalEfficiency = trends.length > 0 ? trends.reduce((sum, item) => sum + (item.efficiency || 0), 0) / trends.length : 0;
+
+      }
+
+
+      // Merge with team performance data if available
+      if (teamPerformance.summary) {
+        calculatedSummary = {
+          ...calculatedSummary,
+          ...teamPerformance.summary
+        };
+      }
+
+      console.log('🔍 Final calculated summary:', calculatedSummary);
+
+      // If all values are zero, try to use comprehensive report summary or test data
+      if (calculatedSummary.totalProduction === 0 && 
+          calculatedSummary.totalEfficiency === 0 && 
+          calculatedSummary.totalRejections === 0 && 
+          calculatedSummary.activeEmployees === 0) {
+        
+        // First try to use comprehensive report summary if available
+        if (teamPerformance.summary && 
+            (teamPerformance.summary.totalProduction > 0 || 
+             teamPerformance.summary.totalEfficiency > 0 || 
+             teamPerformance.summary.totalRejections > 0 || 
+             teamPerformance.summary.activeEmployees > 0)) {
+          calculatedSummary = {
+            ...calculatedSummary,
+            ...teamPerformance.summary
+          };
+        }
+      }
+
+      setTrendData(trends);
+      setEmployeeData(employeePerformance);
+      setSummary(calculatedSummary);
+      
+      
+
+    } catch (error) {
+      // Failed to load report data
+      toast.error('Failed to load report data');
+    } finally {
+      setDataLoading(false);
+    }
+  }, [user?.factoryId, dateRange, filters, reportType]);
+
+  const handleGenerateReport = async () => {
+    if (!dateRange.start || !dateRange.end) {
+      toast.error('Please select a date range');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await loadReportData();
+      toast.success('Report generated successfully');
+    } catch (error) {
+      toast.error('Failed to generate report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportReport = async (format: 'pdf' | 'excel') => {
+    if (!user?.factoryId) return;
+    
+    setLoading(true);
+    try {
+      const reportFilters: ReportFilters = {
+        startDate: dateRange.start?.toISOString(),
+        endDate: dateRange.end?.toISOString(),
+        productId: filters.productId !== 'all' ? filters.productId : undefined,
+        processId: filters.processId !== 'all' ? filters.processId : undefined,
+        employeeId: filters.employeeId !== 'all' ? filters.employeeId : undefined,
+        factoryId: user.factoryId,
+      };
+
+      const blob = await reportsService.exportReport(reportFilters, format);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `supervisor-report-${format}-${dateFnsFormat(new Date(), 'yyyy-MM-dd')}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success(`Report exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      toast.error('Failed to export report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDropdownData = useCallback(async () => {
+    if (!user?.factoryId) return;
+    
+    setDropdownLoading(true);
+    try {
+
+      
+      // Load products, processes, and employees for dropdowns
+      const [productsResponse, processesResponse, employeesResponse] = await Promise.all([
+        productService.getProducts(),
+        processService.getProcesses(),
+        userService.getEmployees(),
+      ]);
+
+
+
+      // Handle different response formats
+      let productsData: Product[] = [];
+      let processesData: Process[] = [];
+      let employeesData: User[] = [];
+
+      // Handle products response
+      if (productsResponse.data && Array.isArray(productsResponse.data)) {
+        productsData = productsResponse.data;
+      } else if ((productsResponse.data as any)?.products && Array.isArray((productsResponse.data as any).products)) {
+        productsData = (productsResponse.data as any).products;
+      } else if (Array.isArray(productsResponse)) {
+        productsData = productsResponse;
+      }
+
+      // Handle processes response
+      if (processesResponse.data && Array.isArray(processesResponse.data)) {
+        processesData = processesResponse.data;
+      } else if ((processesResponse.data as any)?.processes && Array.isArray((processesResponse.data as any).processes)) {
+        processesData = (processesResponse.data as any).processes;
+      } else if (Array.isArray(processesResponse)) {
+        processesData = processesResponse;
+      }
+
+      // Handle employees response
+      if (employeesResponse.data && Array.isArray(employeesResponse.data)) {
+        employeesData = employeesResponse.data;
+      } else if ((employeesResponse.data as any)?.users && Array.isArray((employeesResponse.data as any).users)) {
+        employeesData = (employeesResponse.data as any).users;
+      } else if (Array.isArray(employeesResponse)) {
+        employeesData = employeesResponse;
+      }
+
+
+
+      setProducts(productsData);
+      setProcesses(processesData);
+      setEmployees(employeesData);
+    } catch (error) {
+      toast.error('Failed to load filter options');
+    } finally {
+      setDropdownLoading(false);
+    }
+  }, [user?.factoryId]);
+
+  return (
+    <Layout title="Team Reports">
+      <div className="space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Team Reports & Analytics</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">
+              Monitor your team's performance and generate detailed reports
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1 sm:gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={loadReportData}
+              disabled={dataLoading}
+              className="text-xs"
+            >
+              {dataLoading ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> : <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />}
+              <span className="ml-1 sm:ml-2 text-xs">Refresh</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/reports/debug/work-entries?factoryId=${user?.factoryId}`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  });
+                  const data = await response.json();
+                  console.log('🔍 Debug work entries:', data);
+                  toast.success(`Found ${data.data?.totalCount || 0} work entries for your factory`);
+                } catch (error) {
+                  console.error('Debug failed:', error);
+                  toast.error('Debug failed');
+                }
+              }}
+              className="text-xs"
+            >
+              <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="ml-1 sm:ml-2 text-xs">Debug</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/reports/debug/all-work-entries`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  });
+                  const data = await response.json();
+                  console.log('🔍 All work entries:', data);
+                  toast.success(`Found ${data.data?.totalCount || 0} total work entries in database`);
+                } catch (error) {
+                  console.error('Debug all failed:', error);
+                  toast.error('Debug all failed');
+                }
+              }}
+              className="text-xs"
+            >
+              <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="ml-1 sm:ml-2 text-xs">All Data</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/reports/debug/user-info`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  });
+                  const data = await response.json();
+                  console.log('🔍 User info:', data);
+                  toast.success(`Your factory ID: ${data.data?.user?.factoryId}`);
+                } catch (error) {
+                  console.error('Debug user info failed:', error);
+                  toast.error('Debug user info failed');
+                }
+              }}
+              className="text-xs"
+            >
+              <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="ml-1 sm:ml-2 text-xs">User Info</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Report Configuration */}
+        <Card className="shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
+              Report Configuration
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4">
+              <div>
+                <Label className="text-sm font-medium">Report Type</Label>
+                <Select value={reportType} onValueChange={setReportType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="production">Production</SelectItem>
+                    <SelectItem value="efficiency">Efficiency</SelectItem>
+                    <SelectItem value="rejection">Rejection</SelectItem>
+                    <SelectItem value="attendance">Attendance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Date Range</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange.start && dateRange.end ? (
+                        <span className="hidden sm:inline">
+                          {dateFnsFormat(dateRange.start, 'MMM dd')} - {dateFnsFormat(dateRange.end, 'MMM dd, yyyy')}
+                        </span>
+                      ) : (
+                        <span className="hidden sm:inline">Select date range</span>
+                      )}
+                      <span className="sm:hidden">Date</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={{ from: dateRange.start, to: dateRange.end }}
+                      onSelect={(range) => setDateRange({ start: range?.from, end: range?.to })}
+                      numberOfMonths={1}
+                      className="rounded-md border bg-white"
+                      classNames={{
+                        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                        month: "space-y-4",
+                        caption: "flex justify-center pt-1 relative items-center h-10 sm:h-12",
+                        caption_label: "text-sm sm:text-base font-medium",
+                        nav: "space-x-1 flex items-center",
+                        nav_button: "h-8 w-8 sm:h-10 sm:w-10 bg-transparent p-0 opacity-50 hover:opacity-100 rounded-md border",
+                        nav_button_previous: "absolute left-1",
+                        nav_button_next: "absolute right-1",
+                        table: "w-full border-collapse space-y-1",
+                        head_row: "flex",
+                        head_cell: "text-muted-foreground rounded-md w-8 h-8 sm:w-10 sm:h-10 font-normal text-xs sm:text-sm p-0 flex items-center justify-center",
+                        row: "flex w-full mt-1",
+                        cell: "h-8 w-8 sm:h-10 sm:w-10 text-center text-xs sm:text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                        day: "h-8 w-8 sm:h-10 sm:w-10 p-0 font-bold aria-selected:opacity-100 rounded-md hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:rounded-md text-sm sm:text-base",
+                        day_range_end: "day-range-end",
+                        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                        day_today: "bg-accent text-accent-foreground",
+                        day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                        day_disabled: "text-muted-foreground opacity-50",
+                        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                        day_hidden: "invisible",
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Product</Label>
+                <Select value={filters.productId} onValueChange={(value) => setFilters(prev => ({ ...prev, productId: value }))} disabled={dropdownLoading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={dropdownLoading ? "Loading..." : "Select product"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Products</SelectItem>
+                    {dropdownLoading ? (
+                      <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                    ) : products.length > 0 ? (
+                      products.map(product => (
+                        <SelectItem key={product._id || product.id} value={product._id || product.id}>{product.name}</SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-data" disabled>No products available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Process</Label>
+                <Select 
+                  value={filters.processId} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, processId: value }))} 
+                  disabled={dropdownLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={dropdownLoading ? "Loading..." : "Select process"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Processes</SelectItem>
+                    {dropdownLoading ? (
+                      <SelectItem value="loading" disabled>Loading processes...</SelectItem>
+                    ) : filteredProcesses.length > 0 ? (
+                      filteredProcesses.map(process => (
+                        <SelectItem key={process._id || process.id} value={process._id || process.id}>
+                          {process.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-data" disabled>
+                        {filters.productId === 'all' ? 'No processes available' : 'No processes for selected product'}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label className="text-sm font-medium">Employee</Label>
+                <Select 
+                  value={filters.employeeId} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, employeeId: value }))} 
+                  disabled={dropdownLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={dropdownLoading ? "Loading..." : "Select employee"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees</SelectItem>
+                    {dropdownLoading ? (
+                      <SelectItem value="loading" disabled>Loading employees...</SelectItem>
+                    ) : employees.length > 0 ? (
+                      employees.map(employee => (
+                        <SelectItem key={employee._id || employee.id} value={employee._id || employee.id}>
+                          {`${employee.profile?.firstName || ''} ${employee.profile?.lastName || ''}`.trim() || employee.email}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-data" disabled>No employees available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-end gap-2">
+                <Button onClick={handleGenerateReport} disabled={loading} className="flex-1 text-xs sm:text-sm">
+                  {loading ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> : <FileText className="h-3 w-3 sm:h-4 sm:w-4" />}
+                  <span className="ml-1 sm:ml-2">Generate</span>
+                </Button>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" onClick={() => handleExportReport('excel')} disabled={loading} className="text-xs">
+                    <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="ml-1">Excel</span>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleExportReport('pdf')} disabled={loading} className="text-xs">
+                    <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="ml-1">PDF</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+
+          <Card className="shadow-md">
+            <CardContent className="p-2 sm:p-3 lg:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    {reportType === 'production' && 'Production'}
+                    {reportType === 'efficiency' && 'Efficiency'}
+                    {reportType === 'rejection' && 'Rejections'}
+                    {reportType === 'attendance' && 'Attendance'}
+                  </p>
+                  <p className="text-sm sm:text-base lg:text-lg font-bold truncate">
+                    {dataLoading ? (
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    ) : (
+                      reportType === 'efficiency' 
+                        ? `${summary.totalEfficiency.toFixed(1)}%`
+                        : summary.totalProduction.toLocaleString()
+                    )}
+                  </p>
+
+                  <p className="text-xs text-success hidden sm:block">
+                    {reportType === 'production' && '+8% from last week'}
+                    {reportType === 'efficiency' && '+3% from last week'}
+                    {reportType === 'rejection' && '+1 from last week'}
+                    {reportType === 'attendance' && 'All active'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-md">
+            <CardContent className="p-2 sm:p-3 lg:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Activity className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-success" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Team Efficiency</p>
+                  <p className="text-sm sm:text-base lg:text-lg font-bold truncate">
+                    {dataLoading ? (
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    ) : (
+                      `${summary.totalEfficiency.toFixed(1)}%`
+                    )}
+                  </p>
+                  <p className="text-xs text-success hidden sm:block">+3% from last week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-md">
+            <CardContent className="p-2 sm:p-3 lg:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Package className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-destructive" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Rejections</p>
+                  <p className="text-sm sm:text-base lg:text-lg font-bold truncate">
+                    {dataLoading ? (
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    ) : (
+                      summary.totalRejections
+                    )}
+                  </p>
+                  <p className="text-xs text-destructive hidden sm:block">+1 from last week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-md">
+            <CardContent className="p-2 sm:p-3 lg:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-warning" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Team Members</p>
+                  <p className="text-sm sm:text-base lg:text-lg font-bold truncate">
+                    {dataLoading ? (
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    ) : (
+                      summary.activeEmployees
+                    )}
+                  </p>
+                  <p className="text-xs text-success hidden sm:block">All active</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Report Preview */}
+        <div className="grid gap-6">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <Card className="shadow-md">
+              <CardContent className="p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Average Efficiency</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-success">{summary.totalEfficiency.toFixed(1)}%</p>
+                  <p className="text-xs text-muted-foreground">Team average</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-md">
+              <CardContent className="p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Total Production</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-primary">{summary.totalProduction.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Units completed</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-md">
+              <CardContent className="p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Quality Rate</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-warning">
+                    {summary.totalProduction > 0 
+                      ? ((summary.totalProduction - summary.totalRejections) / summary.totalProduction * 100).toFixed(1)
+                      : 0}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Pass rate</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Detailed Data Table */}
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Detailed Work Entries
+              </CardTitle>
+              <CardDescription>
+                Recent work entries for the selected date range and filters
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {dataLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs sm:text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-1 sm:p-2">Date</th>
+                        <th className="text-left p-1 sm:p-2 hidden sm:table-cell">Employee</th>
+                        <th className="text-left p-1 sm:p-2 hidden lg:table-cell">Product</th>
+                        <th className="text-left p-1 sm:p-2 hidden lg:table-cell">Process</th>
+                        <th className="text-right p-1 sm:p-2">Target</th>
+                        <th className="text-right p-1 sm:p-2">Achieved</th>
+                        <th className="text-right p-1 sm:p-2">Rejected</th>
+                        <th className="text-right p-1 sm:p-2">Efficiency</th>
+                        <th className="text-center p-1 sm:p-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trendData.length > 0 ? (
+                        trendData.slice(0, 10).map((entry, index) => (
+                          <tr key={index} className="border-b hover:bg-muted/50">
+                            <td className="p-1 sm:p-2 text-xs">{entry.date}</td>
+                            <td className="p-1 sm:p-2 hidden sm:table-cell">-</td>
+                            <td className="p-1 sm:p-2 hidden lg:table-cell">-</td>
+                            <td className="p-1 sm:p-2 hidden lg:table-cell">-</td>
+                            <td className="p-1 sm:p-2 text-right text-xs">{entry.production}</td>
+                            <td className="p-1 sm:p-2 text-right text-xs">{entry.production}</td>
+                            <td className="p-1 sm:p-2 text-right text-xs">{entry.rejection}</td>
+                            <td className="p-1 sm:p-2 text-right text-xs">{entry.efficiency.toFixed(1)}%</td>
+                            <td className="p-1 sm:p-2 text-center">
+                              <Badge variant={entry.efficiency >= 100 ? 'default' : 'secondary'} className="text-xs">
+                                {entry.efficiency >= 100 ? 'On Target' : 'Below Target'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={9} className="text-center p-4 text-muted-foreground text-xs sm:text-sm">
+                            No data available for the selected filters
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Floating Export Button */}
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
+          <div className="flex flex-col gap-2">
+            <Button
+              size="sm"
+              onClick={() => handleExportReport('excel')}
+              disabled={loading}
+              className="shadow-lg text-xs sm:text-sm"
+            >
+              <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Export Excel</span>
+              <span className="sm:hidden">Excel</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleExportReport('pdf')}
+              disabled={loading}
+              className="shadow-lg text-xs sm:text-sm"
+            >
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Export PDF</span>
+              <span className="sm:hidden">PDF</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}

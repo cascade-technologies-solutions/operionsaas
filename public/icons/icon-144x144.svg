@@ -1,0 +1,6 @@
+<svg width="144" height="144" viewBox="0 0 144 144" xmlns="http://www.w3.org/2000/svg">
+  <rect width="144" height="144" fill="#3b82f6"/>
+  <circle cx="72" cy="72" r="40" fill="white"/>
+  <path d="M60 72 L70 82 L84 68" stroke="#3b82f6" stroke-width="4" fill="none"/>
+  <text x="72" y="120" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">OPERION</text>
+</svg>
