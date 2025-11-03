@@ -67,7 +67,7 @@ export const useDeleteProduct = () => {
   const { factoryId } = useTenant();
   
   return useMutation({
-    mutationFn: (id: string) => productService.deleteProduct(factoryId!, id),
+    mutationFn: (id: string) => productService.deleteProduct(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId!) });
       toast.success('Product deleted successfully');
