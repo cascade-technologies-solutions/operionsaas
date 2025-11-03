@@ -60,13 +60,19 @@
             if (authStorage) {
               var authData = JSON.parse(authStorage);
               
-              // Zustand persist stores state directly, but may have version wrapper
-              // Handle both formats: direct state or wrapped in 'state' property
-              var state = authData.state || authData;
+              // Zustand persist with partialize stores the state object directly at root level
+              // The structure is: { user: {...}, accessToken: "...", isAuthenticated: true, ... }
+              // Handle both possible formats for safety
+              var state = authData;
               
-              if (state) {
+              // Check if it's wrapped in a state property (older format or different config)
+              if (authData.state) {
+                state = authData.state;
+              }
+              
+              if (state && typeof state === 'object') {
                 var user = state.user;
-                var isAuthenticated = state.isAuthenticated;
+                var isAuthenticated = state.isAuthenticated === true;
                 var accessToken = state.accessToken;
                 
                 // If authenticated with user and token, redirect to dashboard
@@ -82,7 +88,7 @@
                   
                   // Only redirect if we're on root path and have a valid dashboard path
                   if (dashboardPath && window.location.pathname === '/') {
-                    // Use replace to prevent back button issues
+                    // Use replace to prevent back button issues and ensure immediate redirect
                     window.location.replace(window.location.origin + dashboardPath);
                   }
                 }

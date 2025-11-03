@@ -199,6 +199,7 @@ const App = () => {
           <div className="min-h-screen">
             <Routes>
               {/* Public Routes */}
+              {/* Landing page will handle its own redirect for authenticated users */}
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
                           <Route path="/forgot-password" element={<ForgotPassword />} />
