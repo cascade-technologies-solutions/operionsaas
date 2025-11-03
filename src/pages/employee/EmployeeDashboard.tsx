@@ -121,19 +121,28 @@ export default function EmployeeDashboard() {
   const filteredProcesses = useMemo(() => {
     if (!selectedProduct || !products.length || !processes.length) return [];
     
-    const product = products.find(p => p._id === selectedProduct);
+    // Filter out null/undefined products
+    const validProducts = products.filter(p => p && p._id);
+    const product = validProducts.find(p => p._id === selectedProduct);
     if (!product || !product.processes || !Array.isArray(product.processes)) return [];
+    
+    // Filter out null/undefined process items from product.processes
+    const validProductProcesses = product.processes.filter(p => p != null);
     
     // Get only processes that belong to this product
     // Handle both string and ObjectId comparisons for processId
-    const productProcessIds = product.processes.map(p => {
+    const productProcessIds = validProductProcesses.map(p => {
+      if (!p) return null; // Additional safety check
       const pid = p.processId;
       if (!pid) return null;
       return typeof pid === 'string' ? pid : String(pid);
     }).filter((id): id is string => id !== null);
     
-    const filtered = processes.filter(proc => {
-      if (!proc._id) return false;
+    // Filter out null/undefined processes before filtering
+    const validProcesses = processes.filter(proc => proc != null && proc._id);
+    
+    const filtered = validProcesses.filter(proc => {
+      if (!proc || !proc._id) return false;
       const procIdStr = typeof proc._id === 'string' ? proc._id : String(proc._id);
       return productProcessIds.includes(procIdStr);
     });
@@ -181,8 +190,12 @@ export default function EmployeeDashboard() {
       if (savedProcess) {
         // Check if the saved process is valid for the selected product
         const product = products.find(p => p._id === selectedProduct);
-        if (product && product.processes) {
-          const productProcessIds = product.processes.map(p => p.processId);
+        if (product && product.processes && Array.isArray(product.processes)) {
+          // Filter out null/undefined items before mapping
+          const productProcessIds = product.processes
+            .filter(p => p != null)
+            .map(p => p.processId)
+            .filter(id => id != null);
           if (productProcessIds.includes(savedProcess)) {
             setSelectedProcess(savedProcess);
           }
