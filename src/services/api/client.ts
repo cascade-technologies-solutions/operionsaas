@@ -59,6 +59,21 @@ export interface ApiResponse<T = any> {
   status: number;
 }
 
+// Custom error class to preserve API response details
+export class ApiError extends Error {
+  status?: number;
+  responseData?: any;
+  originalError?: any;
+
+  constructor(message: string, status?: number, responseData?: any, originalError?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.responseData = responseData;
+    this.originalError = originalError;
+  }
+}
+
 export interface RequestConfig extends RequestInit {
   skipAuth?: boolean;
   params?: Record<string, any>;
@@ -300,27 +315,40 @@ class ApiClient {
 
         // Handle response errors
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = await response.json().catch(() => ({
+            error: response.statusText || 'Unknown error',
+            status: response.status
+          }));
           console.error('❌ API Error Response:', errorData);
+          
+          // Create ApiError with full details for all error statuses
+          const apiError = new ApiError(
+            errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+            response.status,
+            errorData,
+            response
+          );
           
           // Don't retry on authentication errors
           if (response.status === 401 || response.status === 403) {
-            throw new Error(errorData.error || `HTTP ${response.status}`);
+            throw apiError;
           }
           
           // Don't retry on client errors (4xx) except for rate limiting
           if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-            throw new Error(errorData.error || `HTTP ${response.status}`);
+            throw apiError;
           }
           
-          lastError = new Error(errorData.error || `HTTP ${response.status}`);
+          // For server errors (5xx), save as lastError and retry
+          lastError = apiError;
           
           if (attempt < maxRetries) {
             await this.delay(retryDelay);
             continue;
           }
           
-          throw lastError;
+          // After all retries, throw the error
+          throw apiError;
         }
 
         // Handle empty responses

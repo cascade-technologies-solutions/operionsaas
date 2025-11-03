@@ -65,8 +65,20 @@ export const attendanceService = {
     shiftType: 'morning' | 'evening' | 'night';
     target: number;
   }): Promise<{ data: Attendance }> {
-    const response = await apiClient.post('/attendance/check-in', data);
-    return response.data || response;
+    try {
+      const response = await apiClient.post('/attendance/check-in', data);
+      return response.data || response;
+    } catch (error: any) {
+      // Log detailed error for debugging
+      console.error('Attendance check-in API error:', {
+        requestData: data,
+        error: error,
+        errorMessage: error?.message,
+        errorResponse: error?.response,
+        errorData: error?.response?.data
+      });
+      throw error;
+    }
   },
 
   async checkOut(attendanceId: string, location: { latitude: number; longitude: number }): Promise<{ data: Attendance }> {

@@ -703,13 +703,30 @@ export default function EmployeeDashboard() {
       toast.success('Checked in successfully');
     } catch (error: any) {
       console.error('Check-in error:', error);
-      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to check in';
-      console.error('Full error details:', {
+      
+      // Handle ApiError with preserved response data
+      const errorMessage = error?.responseData?.error || 
+                          error?.responseData?.message || 
+                          error?.message || 
+                          'Failed to check in';
+      
+      const errorDetails = {
         message: errorMessage,
-        response: error?.response?.data,
-        status: error?.response?.status
-      });
-      toast.error(errorMessage);
+        status: error?.status,
+        responseData: error?.responseData,
+        requestData: checkInData
+      };
+      
+      console.error('Full error details:', errorDetails);
+      
+      // Show more specific error message
+      if (error?.status === 500) {
+        toast.error(`Server error: ${errorMessage}. Please check backend logs or contact support.`);
+      } else if (error?.status === 400) {
+        toast.error(`Validation error: ${errorMessage}`);
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
