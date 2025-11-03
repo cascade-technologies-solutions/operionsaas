@@ -123,8 +123,14 @@ const Products = () => {
       const productsArray = (productData as any).products || (productData as any).data?.products || (productData as any).data || [];
       const processesArray = (processData as any).processes || (processData as any).data?.processes || (processData as any).data || [];
       
+      // Remove duplicate processes based on _id to fix duplicate display issue
+      const uniqueProcesses = processesArray.filter((process: any, index: number, self: any[]) => {
+        if (!process || !process._id) return false; // Filter out null/undefined processes
+        return index === self.findIndex((p: any) => p && p._id && p._id.toString() === process._id.toString());
+      });
+      
       setProducts(productsArray);
-      setProcesses(processesArray);
+      setProcesses(uniqueProcesses);
       
     } catch (error) {
       console.error('❌ Failed to load data:', error);
@@ -463,13 +469,16 @@ const Products = () => {
   };
 
   const getProcessesForProduct = (productId: string) => {
-    return processes.filter(process => {
-      // Handle both populated and unpopulated productId
-      const processProductId = typeof process.productId === 'string' 
-        ? process.productId 
-        : (process.productId as any)?._id || (process.productId as any)?.id;
-      return processProductId === productId;
-    }).sort((a, b) => (a.order || 0) - (b.order || 0));
+    return processes
+      .filter((process) => process && process._id) // Filter out null/undefined processes
+      .filter(process => {
+        // Handle both populated and unpopulated productId
+        const processProductId = typeof process.productId === 'string' 
+          ? process.productId 
+          : (process.productId as any)?._id || (process.productId as any)?.id;
+        return processProductId === productId;
+      })
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
   };
 
 
@@ -550,7 +559,9 @@ const Products = () => {
                       <div>
                         <Label>Assign Processes</Label>
                         <div className="mt-2 space-y-2">
-                          {processes.map((process) => (
+                          {processes
+                            .filter((process) => process && process._id) // Filter out null/undefined processes
+                            .map((process) => (
                             <div key={process._id} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
@@ -794,6 +805,7 @@ const Products = () => {
               ) : (
                 <div className="space-y-2">
                   {processes
+                    .filter((process) => process && process._id) // Filter out null/undefined processes
                     .map((process, index) => (
                       <div key={`${process._id}-${refreshKey}`} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
