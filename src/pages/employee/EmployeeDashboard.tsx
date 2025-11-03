@@ -628,6 +628,8 @@ export default function EmployeeDashboard() {
   // Handle completing work - removed (using direct production submission now)
 
   const handleCheckIn = async () => {
+    let checkInData: any = null;
+    
     try {
       setLoading(true);
       
@@ -684,7 +686,7 @@ export default function EmployeeDashboard() {
       }
 
       // Prepare check-in data
-      const checkInData = {
+      checkInData = {
         employeeId: userId,
         processId: selectedProcess,
         location: {

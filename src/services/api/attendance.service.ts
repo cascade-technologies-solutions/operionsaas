@@ -74,8 +74,10 @@ export const attendanceService = {
         requestData: data,
         error: error,
         errorMessage: error?.message,
+        errorStatus: error?.status,
+        errorResponseData: error?.responseData,
         errorResponse: error?.response,
-        errorData: error?.response?.data
+        errorOriginalError: error?.originalError
       });
       throw error;
     }
