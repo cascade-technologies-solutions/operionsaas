@@ -390,19 +390,20 @@ const UserManagement = () => {
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold">Users</h2>
-          <p className="text-muted-foreground">Manage supervisors and employees</p>
+          <p className="text-muted-foreground text-sm sm:text-base">Manage supervisors and employees</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button 
             variant="outline" 
             onClick={loadData}
             disabled={loading}
+            className="w-full sm:w-auto"
           >
             {loading ? 'Loading...' : 'Refresh'}
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => handleCloseDialog()}>
+              <Button onClick={() => handleCloseDialog()} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add User
               </Button>
@@ -677,10 +678,10 @@ const UserManagement = () => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search users by name, email, phone, or role..."
+            placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 w-full"
           />
         </div>
       </div>
@@ -694,54 +695,58 @@ const UserManagement = () => {
 
         <TabsContent value="all" className="mt-6">
           <Card>
-            <div className="p-6">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead className="hidden md:table-cell">Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
+            <div className="p-3 sm:p-6">
+              <div className="overflow-x-auto -mx-3 sm:mx-0">
+                <div className="inline-block min-w-full align-middle px-3 sm:px-0">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center">
-                          Loading...
-                        </TableCell>
+                        <TableHead className="min-w-[120px]">Name</TableHead>
+                        <TableHead className="hidden md:table-cell min-w-[150px]">Email</TableHead>
+                        <TableHead className="min-w-[80px]">Role</TableHead>
+                        <TableHead className="hidden lg:table-cell min-w-[120px]">Phone</TableHead>
+                        <TableHead className="min-w-[80px]">Actions</TableHead>
                       </TableRow>
-                    ) : filteredAllUsers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center">
-                          {searchTerm ? 'No users found matching your search.' : 'No users found. Add your first user.'}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredAllUsers.map((user) => (
-                        <TableRow key={user.id || user._id || user.username}>
-                          <TableCell className="font-medium">
-                            {user.profile.firstName} {user.profile.lastName}
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            Loading...
                           </TableCell>
-                          <TableCell className="hidden md:table-cell">{user.email}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{user.role}</Badge>
+                        </TableRow>
+                      ) : filteredAllUsers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            {searchTerm ? 'No users found matching your search.' : 'No users found. Add your first user.'}
                           </TableCell>
-                          <TableCell className="hidden lg:table-cell">{user.profile.phone}</TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  title="View Details"
-                                  className="w-auto"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
+                        </TableRow>
+                      ) : (
+                        filteredAllUsers.map((user) => (
+                          <TableRow key={user.id || user._id || user.username}>
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col">
+                                <span>{user.profile.firstName} {user.profile.lastName}</span>
+                                <span className="text-xs text-muted-foreground md:hidden mt-1">{user.email}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">{user.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">{user.role}</Badge>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">{user.profile.phone}</TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    title="View Details"
+                                    className="w-auto"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem
                                   onClick={() => handleViewDetails(user)}
@@ -789,31 +794,32 @@ const UserManagement = () => {
 
         <TabsContent value="supervisors" className="mt-6">
           <Card>
-            <div className="p-6">
+            <div className="p-3 sm:p-6">
               {filteredSupervisors.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   {searchTerm ? 'No supervisors found matching your search.' : 'No supervisors found.'}
                 </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-3 sm:gap-4">
                   {filteredSupervisors.map((supervisor) => (
-                  <Card key={supervisor.id || supervisor._id || supervisor.username} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold">
+                  <Card key={supervisor.id || supervisor._id || supervisor.username} className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-base sm:text-lg truncate">
                           {supervisor.profile.firstName} {supervisor.profile.lastName}
                         </h4>
-                        <p className="text-sm text-muted-foreground">{supervisor.email}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">{supervisor.email}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {employees.filter(e => e.supervisorId === supervisor.id).length} employees
                         </p>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline" title="View Details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
+                      <div className="flex-shrink-0">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" title="View Details" className="w-full sm:w-auto">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
                             onClick={() => handleViewDetails(supervisor)}
@@ -849,40 +855,41 @@ const UserManagement = () => {
 
         <TabsContent value="employees" className="mt-6">
           <Card>
-            <div className="p-6">
+            <div className="p-3 sm:p-6">
               {filteredEmployees.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   {searchTerm ? 'No employees found matching your search.' : 'No employees found.'}
                 </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-3 sm:gap-4">
                   {filteredEmployees.map((employee) => {
                   const supervisor = users.find(u => u.id === employee.supervisorId);
                   return (
-                    <Card key={employee.id || employee._id || employee.username} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-semibold">
+                    <Card key={employee.id || employee._id || employee.username} className="p-3 sm:p-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-base sm:text-lg truncate">
                             {employee.profile.firstName} {employee.profile.lastName}
                           </h4>
-                          <p className="text-sm text-muted-foreground">{employee.email}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">{employee.email}</p>
                           {supervisor && (
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               Supervisor: {supervisor.profile.firstName} {supervisor.profile.lastName}
                             </p>
                           )}
                           {employee.assignedProcesses && employee.assignedProcesses.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {employee.assignedProcesses.length} processes assigned
                             </p>
                           )}
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="outline" title="View Details">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
+                        <div className="flex-shrink-0">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="outline" title="View Details" className="w-full sm:w-auto">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem
                               onClick={() => handleViewDetails(employee)}
@@ -929,7 +936,7 @@ const UserManagement = () => {
       </Tabs>
 
       {/* User Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-6">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>

@@ -279,11 +279,57 @@ class ApiClient {
         }
 
 
-        let response = await fetch(url, {
-          ...requestConfig,
-          credentials: 'include', // Include cookies for refresh token
-          signal: AbortSignal.timeout(20000) // Increased timeout to 20 seconds
-        });
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            ...requestConfig,
+            credentials: 'include', // Include cookies for refresh token
+            signal: AbortSignal.timeout(20000) // Increased timeout to 20 seconds
+          });
+        } catch (fetchError) {
+          // Check if this is a CORS error
+          // CORS errors typically appear as "Failed to fetch" or "NetworkError"
+          // and occur when the browser blocks the request before it reaches the server
+          const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+          const isLikelyCorsError = 
+            errorMessage === 'Failed to fetch' ||
+            errorMessage.includes('NetworkError') ||
+            errorMessage.includes('CORS') ||
+            errorMessage.includes('Access-Control-Allow-Origin') ||
+            (typeof window !== 'undefined' && 
+             errorMessage.includes('origin') && 
+             errorMessage.includes('blocked'));
+          
+          if (isLikelyCorsError && attempt === 0) {
+            // Log detailed CORS error information on first attempt
+            console.error('❌ CORS Error detected:', {
+              error: errorMessage,
+              frontendOrigin: typeof window !== 'undefined' ? window.location.origin : 'unknown',
+              apiUrl: url,
+              hint: 'Backend must have CORS_ORIGINS configured to include: ' + 
+                    (typeof window !== 'undefined' ? window.location.origin : 'frontend origin')
+            });
+            toast.error('CORS configuration error: Backend must allow requests from this domain.');
+          }
+          
+          // Don't retry on CORS errors - they are configuration issues that won't resolve
+          if (isLikelyCorsError) {
+            throw new ApiError(
+              `CORS error: Backend must allow requests from ${typeof window !== 'undefined' ? window.location.origin : 'frontend origin'}. ` +
+              `Please ensure CORS_ORIGINS includes your frontend domain.`,
+              0,
+              { 
+                corsError: true, 
+                frontendOrigin: typeof window !== 'undefined' ? window.location.origin : 'unknown', 
+                apiUrl: url,
+                originalError: errorMessage
+              }
+            );
+          }
+          
+          // Re-throw other fetch errors
+          throw fetchError;
+        }
 
         // Handle token expiration
         if (response.status === 401 && !config?.skipAuth) {
@@ -309,7 +355,33 @@ class ApiClient {
         // Handle rate limiting
         if (response.status === 429) {
           const retryAfter = response.headers.get('Retry-After');
-          const delay = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
+          const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
+          const rateLimitReset = response.headers.get('X-RateLimit-Reset');
+          
+          // Calculate delay - use Retry-After header if available, otherwise exponential backoff
+          const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(5000 * Math.pow(2, attempt), 30000);
+          
+          if (attempt === 0) {
+            // Show user-friendly message on first rate limit hit
+            const resetTime = rateLimitReset ? new Date(parseInt(rateLimitReset)).toLocaleTimeString() : 'soon';
+            toast.error(`Too many requests. Please wait before trying again. (Resets at ${resetTime})`);
+          }
+          
+          // Don't retry more than 2 times for rate limits to avoid making it worse
+          if (attempt >= 2) {
+            const apiError = new ApiError(
+              'Rate limit exceeded. Please wait before making more requests.',
+              429,
+              { 
+                rateLimitError: true,
+                retryAfter: retryAfter ? parseInt(retryAfter) : undefined,
+                rateLimitRemaining: rateLimitRemaining ? parseInt(rateLimitRemaining) : undefined,
+                rateLimitReset: rateLimitReset ? parseInt(rateLimitReset) : undefined
+              }
+            );
+            throw apiError;
+          }
+          
           await this.delay(delay);
           continue;
         }
@@ -409,7 +481,13 @@ class ApiClient {
           }
 
           // Check for CORS errors (these are non-retryable configuration issues)
-          // Note: CORS errors appear as "Failed to fetch" but the browser console will show the actual CORS error
+          // CORS errors are now caught earlier in the fetch try-catch block
+          // But we still check here as a fallback
+          if (error instanceof ApiError && error.responseData?.corsError) {
+            // Already handled as CORS error, don't retry
+            throw error;
+          }
+          
           if (error.message.includes('CORS') || error.message.includes('Access-Control-Allow-Origin')) {
             console.error('❌ CORS Error detected: Backend is not configured to allow requests from this origin.');
             console.error('   Frontend origin:', typeof window !== 'undefined' ? window.location.origin : 'unknown');
@@ -426,13 +504,28 @@ class ApiClient {
             );
           }
 
-          // Check for network errors
-          if (error.message === 'Failed to fetch' || error.message.includes('NetworkError')) {
+          // Check for network errors (but distinguish from CORS errors)
+          // If it's "Failed to fetch" and we're on HTTPS with HTTP API, it might be CORS or mixed content
+          const isNetworkError = 
+            error.message === 'Failed to fetch' || 
+            error.message.includes('NetworkError');
+          
+          const mightBeCors = 
+            typeof window !== 'undefined' &&
+            window.location.protocol === 'https:' &&
+            this.baseURL.startsWith('http://');
+          
+          if (isNetworkError && mightBeCors && attempt === 0) {
+            console.warn('⚠️ Network error might be CORS related. Check if API URL uses HTTPS.');
+            toast.error('Connection error. This might be a CORS configuration issue.');
+          }
+          
+          if (isNetworkError && !mightBeCors) {
             if (attempt === maxRetries) {
               toast.error('Unable to connect to server. The backend may be down or unreachable.');
               throw new Error('Server connection failed - please ensure backend server is running and accessible');
             }
-            // Continue to retry for network errors
+            // Continue to retry for network errors (but not if it might be CORS)
           }
         }
 
