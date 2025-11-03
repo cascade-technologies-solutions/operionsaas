@@ -685,19 +685,43 @@ export default function EmployeeDashboard() {
         return;
       }
 
-      // Prepare check-in data
+      // Prepare check-in data with explicit type validation
+      // Ensure employeeId is a valid string (MongoDB ObjectId format)
+      if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        toast.error('Invalid user ID. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      if (!selectedProcess || typeof selectedProcess !== 'string' || selectedProcess.trim() === '') {
+        toast.error('Invalid process ID. Please select a process.');
+        setLoading(false);
+        return;
+      }
+
       checkInData = {
-        employeeId: userId,
-        processId: selectedProcess,
+        employeeId: String(userId).trim(),
+        processId: String(selectedProcess).trim(),
         location: {
           latitude: Number(location.latitude),
           longitude: Number(location.longitude)
         },
         shiftType: normalizedShiftType,
-        target: 0
+        target: Number(0)
       };
 
-      console.log('Check-in data being sent:', checkInData);
+      // Validate all required fields are present
+      if (!checkInData.employeeId || !checkInData.processId || !checkInData.location || 
+          isNaN(checkInData.location.latitude) || isNaN(checkInData.location.longitude)) {
+        console.error('❌ Invalid check-in data:', checkInData);
+        toast.error('Invalid check-in data. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Check-in data validated and being sent:', checkInData);
+      console.log('✅ Employee ID type:', typeof checkInData.employeeId, 'Value:', checkInData.employeeId);
+      console.log('✅ Process ID type:', typeof checkInData.processId, 'Value:', checkInData.processId);
 
       const attendanceData = await attendanceService.checkIn(checkInData);
       setAttendance(attendanceData.data);

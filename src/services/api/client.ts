@@ -427,6 +427,13 @@ class ApiClient {
   }
 
   async post<T = any>(endpoint: string, data?: any, config?: RequestConfig): Promise<T> {
+    // Log request body for debugging (especially for attendance check-in)
+    if (endpoint.includes('/attendance/check-in')) {
+      console.log('📤 POST Request to:', endpoint);
+      console.log('📤 Request body (raw):', data);
+      console.log('📤 Request body (stringified):', data ? JSON.stringify(data) : undefined);
+    }
+    
     return this.request<T>(endpoint, {
       ...config,
       method: 'POST',
