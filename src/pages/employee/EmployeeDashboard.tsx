@@ -161,16 +161,16 @@ export default function EmployeeDashboard() {
   // Restore selections from localStorage when data is loaded
   useEffect(() => {
     if (products.length > 0 && processes.length > 0 && machines.length > 0 && shifts.length > 0) {
-      // Restore product selection
+      // Restore product selection - ensure string comparison
       const savedProduct = getSelectionFromStorage('employee_selected_product');
-      if (savedProduct && products.find(p => p._id === savedProduct)) {
-        setSelectedProduct(savedProduct);
+      if (savedProduct && products.find(p => String(p._id) === String(savedProduct))) {
+        setSelectedProduct(String(savedProduct));
       }
 
-      // Restore machine selection
+      // Restore machine selection - ensure string comparison
       const savedMachine = getSelectionFromStorage('employee_selected_machine');
-      if (savedMachine && machines.find(m => m._id === savedMachine)) {
-        setSelectedMachine(savedMachine);
+      if (savedMachine && machines.find(m => String(m._id) === String(savedMachine))) {
+        setSelectedMachine(String(savedMachine));
       }
 
       // Restore shift selection
@@ -188,16 +188,16 @@ export default function EmployeeDashboard() {
     if (selectedProduct && processes.length > 0) {
       const savedProcess = getSelectionFromStorage('employee_selected_process');
       if (savedProcess) {
-        // Check if the saved process is valid for the selected product
-        const product = products.find(p => p._id === selectedProduct);
+        // Check if the saved process is valid for the selected product - ensure string comparison
+        const product = products.find(p => String(p._id) === String(selectedProduct));
         if (product && product.processes && Array.isArray(product.processes)) {
-          // Filter out null/undefined items before mapping
+          // Filter out null/undefined items before mapping and convert to strings
           const productProcessIds = product.processes
             .filter(p => p != null)
-            .map(p => p.processId)
-            .filter(id => id != null);
-          if (productProcessIds.includes(savedProcess)) {
-            setSelectedProcess(savedProcess);
+            .map(p => String(p.processId))
+            .filter(id => id != null && id !== 'undefined');
+          if (productProcessIds.includes(String(savedProcess))) {
+            setSelectedProcess(String(savedProcess));
           }
         }
       }
