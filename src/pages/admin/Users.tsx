@@ -31,7 +31,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Edit, Trash2, Users, UserCheck, UserX, RotateCcw, Eye } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Edit, Trash2, Users, UserCheck, UserX, RotateCcw, Eye, MoreVertical } from 'lucide-react';
 import { userService } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -688,42 +694,52 @@ const UserManagement = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleViewDetails(user)}
-                                title="View Details"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEdit(user)}
-                                title="Edit User"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              {user.role === 'employee' && user.deviceId && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleResetDevice(user._id || user.id || '')}
-                                  title="Reset Device"
-                                  disabled={!user._id && !user.id}
+                                  title="View Details"
+                                  className="w-full sm:w-auto"
                                 >
-                                  <RotateCcw className="h-4 w-4" />
+                                  <Eye className="h-4 w-4 sm:mr-0" />
+                                  <span className="ml-2 sm:hidden">Actions</span>
                                 </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDelete(user._id || user.id || '')}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                  onClick={() => handleViewDetails(user)}
+                                  className="cursor-pointer"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleEdit(user)}
+                                  className="cursor-pointer"
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit User
+                                </DropdownMenuItem>
+                                {user.role === 'employee' && user.deviceId && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleResetDevice(user._id || user.id || '')}
+                                    disabled={!user._id && !user.id}
+                                    className="cursor-pointer"
+                                  >
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Reset Device
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(user._id || user.id || '')}
+                                  className="cursor-pointer text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete User
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))
@@ -751,17 +767,37 @@ const UserManagement = () => {
                           {employees.filter(e => e.supervisorId === supervisor.id).length} employees
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleViewDetails(supervisor)} title="View Details">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(supervisor)}>
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(supervisor.id)}>
-                          Delete
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline" title="View Details">
+                            <Eye className="h-4 w-4 sm:mr-0" />
+                            <span className="ml-2 sm:hidden">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => handleViewDetails(supervisor)}
+                            className="cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(supervisor)}
+                            className="cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(supervisor.id)}
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete User
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </Card>
                 ))}
@@ -795,28 +831,47 @@ const UserManagement = () => {
                             </p>
                           )}
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleViewDetails(employee)} title="View Details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(employee)}>
-                            Edit
-                          </Button>
-                          {employee.deviceId && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleResetDevice(employee._id || employee.id || '')}
-                              title="Reset Device"
-                              disabled={!employee._id && !employee.id}
-                            >
-                              <RotateCcw className="h-4 w-4" />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" title="View Details">
+                              <Eye className="h-4 w-4 sm:mr-0" />
+                              <span className="ml-2 sm:hidden">Actions</span>
                             </Button>
-                          )}
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(employee._id || employee.id || '')}>
-                            Delete
-                          </Button>
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onClick={() => handleViewDetails(employee)}
+                              className="cursor-pointer"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(employee)}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit User
+                            </DropdownMenuItem>
+                            {employee.deviceId && (
+                              <DropdownMenuItem
+                                onClick={() => handleResetDevice(employee._id || employee.id || '')}
+                                disabled={!employee._id && !employee.id}
+                                className="cursor-pointer"
+                              >
+                                <RotateCcw className="h-4 w-4 mr-2" />
+                                Reset Device
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(employee._id || employee.id || '')}
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </Card>
                   );
