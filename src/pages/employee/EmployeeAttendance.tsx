@@ -19,7 +19,8 @@ import {
   Filter,
   TrendingUp,
   BarChart3,
-  Activity
+  Activity,
+  Package
 } from 'lucide-react';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuthStore } from '@/stores/authStore';
@@ -776,23 +777,24 @@ export default function EmployeeAttendance() {
           </TabsContent>
 
           {/* Work History Tab */}
-          <TabsContent value="work-history" className="space-y-6">
-            <Card className="shadow-lg">
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex-1">
+          <TabsContent value="work-history" className="space-y-4 sm:space-y-6">
+            {/* Summary Stats Card */}
+            <Card className="shadow-md border-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
                     <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                      <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5" />
-                      Work History
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      Work History Summary
                     </CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">
-                      Your work entries with filtering options
+                    <CardDescription className="text-xs sm:text-sm mt-1">
+                      {workHistoryFilter === 'weekly' ? 'Last 7 days' : 'This month'} performance overview
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-muted-foreground" />
                     <Select value={workHistoryFilter} onValueChange={(value: 'weekly' | 'monthly') => setWorkHistoryFilter(value)}>
-                      <SelectTrigger className="w-full sm:w-32">
+                      <SelectTrigger className="w-full sm:w-36 bg-white/80 border-primary/20">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -804,112 +806,213 @@ export default function EmployeeAttendance() {
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Filtered Stats - Responsive */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4 rounded-lg text-center">
-                    <p className="text-xl sm:text-2xl font-bold text-primary">{filteredStats.workHours}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Work Hours</p>
+                {/* Enhanced Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Timer className="h-4 w-4 text-blue-600" />
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Work Hours</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-600">{filteredStats.workHours.toFixed(1)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total hours worked</p>
                   </div>
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 sm:p-4 rounded-lg text-center">
-                    <p className="text-xl sm:text-2xl font-bold text-green-600">{filteredStats.production}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Production</p>
+                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-green-100 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="h-4 w-4 text-green-600" />
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Production</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-green-600">{filteredStats.production.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Units achieved</p>
                   </div>
-                  <div className="bg-gradient-to-r from-red-50 to-rose-50 p-3 sm:p-4 rounded-lg text-center">
-                    <p className="text-xl sm:text-2xl font-bold text-red-600">{filteredStats.rejections}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Rejections</p>
+                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-red-100 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center gap-2 mb-2">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Rejections</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-red-600">{filteredStats.rejections.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Units rejected</p>
                   </div>
-                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-3 sm:p-4 rounded-lg text-center">
-                    <p className="text-xl sm:text-2xl font-bold text-orange-600">{filteredStats.entries}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Entries</p>
+                  <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BarChart3 className="h-4 w-4 text-orange-600" />
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Entries</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-orange-600">{filteredStats.entries}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Work sessions</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
+            {/* Work Entries List */}
+            <Card className="shadow-md">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Work Entries
+                  <Badge variant="secondary" className="ml-2">
+                    {filteredWorkEntries.length}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  Detailed history of your work sessions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 {loadingHistory ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Loading work history...</span>
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                    <p className="text-sm text-muted-foreground">Loading work history...</p>
                   </div>
                 ) : filteredWorkEntries.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 sm:space-y-4">
                     {filteredWorkEntries.map((entry, index) => {
                       const hours = entry.startTime && entry.endTime 
-                        ? ((new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime()) / (1000 * 60 * 60)).toFixed(2)
-                        : '0.00';
+                        ? ((new Date(entry.endTime).getTime() - new Date(entry.startTime).getTime()) / (1000 * 60 * 60))
+                        : 0;
+                      
+                      const entryDate = new Date(entry.createdAt || entry.startTime);
+                      const isToday = entryDate.toDateString() === new Date().toDateString();
+                      const efficiency = entry.targetQuantity > 0 
+                        ? Math.round((entry.achieved / entry.targetQuantity) * 100)
+                        : 0;
                       
                       return (
-                        <div
+                        <Card 
                           key={entry._id || index}
-                          className="p-4 border rounded-lg bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow"
+                          className="border-l-4 border-l-primary hover:shadow-lg transition-all duration-200 bg-gradient-to-r from-white to-gray-50/50"
                         >
-                          {/* Mobile-first responsive layout */}
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            {/* Left section: Date and Time */}
-                            <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-                              {/* Date badge - compact on mobile */}
-                              <div className="text-center min-w-[60px] sm:min-w-[80px] bg-gradient-to-r from-blue-50 to-indigo-50 p-2 rounded flex-shrink-0">
-                                <p className="font-semibold text-sm sm:text-base">
-                                  {formatDate(entry.createdAt || entry.startTime)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(entry.createdAt || entry.startTime), 'EEE')}
-                                </p>
+                          <CardContent className="p-4 sm:p-5">
+                            <div className="flex flex-col gap-4">
+                              {/* Header Row */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  {/* Date Badge */}
+                                  <div className={`flex flex-col items-center justify-center min-w-[70px] sm:min-w-[80px] p-3 rounded-xl ${
+                                    isToday 
+                                      ? 'bg-primary/10 border-2 border-primary/20' 
+                                      : 'bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100'
+                                  }`}>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                      {format(entryDate, 'MMM')}
+                                    </p>
+                                    <p className="text-xl sm:text-2xl font-bold text-primary mt-1">
+                                      {format(entryDate, 'dd')}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {format(entryDate, 'EEE')}
+                                    </p>
+                                  </div>
+                                  
+                                  {/* Entry Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h3 className="font-semibold text-base sm:text-lg text-gray-900">
+                                        Work Entry #{filteredWorkEntries.length - index}
+                                      </h3>
+                                      <Badge 
+                                        variant={entry.achieved > 0 || entry.rejected > 0 ? "default" : "secondary"}
+                                        className="text-xs"
+                                      >
+                                        {entry.achieved > 0 || entry.rejected > 0 ? "Completed" : "In Progress"}
+                                      </Badge>
+                                    </div>
+                                    
+                                    {/* Time Range */}
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                                      <Clock className="h-3 w-3" />
+                                      <span className="font-medium">
+                                        {entry.startTime ? formatTime(entry.startTime) : 'N/A'}
+                                      </span>
+                                      <span className="text-muted-foreground">→</span>
+                                      <span className="font-medium">
+                                        {(entry.achieved > 0 || entry.rejected > 0) && entry.endTime 
+                                          ? formatTime(entry.endTime) 
+                                          : 'In Progress'}
+                                      </span>
+                                      {entry.startTime && entry.endTime && (
+                                        <>
+                                          <span className="text-muted-foreground">•</span>
+                                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                            {hours.toFixed(1)}h
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                               
-                              {/* Content section - wraps on mobile */}
-                              <div className="flex-1 min-w-0">
-                                {/* Time - top right on desktop, below date on mobile */}
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-1">
-                                  <p className="font-medium text-sm sm:text-base">
-                                    {entry.startTime ? formatTime(entry.startTime) : '-'} - {(entry.achieved > 0 || entry.rejected > 0) ? formatTime(entry.endTime) : 'In Progress'}
+                              {/* Details Grid */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {/* Machine */}
+                                <div className="bg-white p-3 rounded-lg border border-gray-100">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Machine</span>
+                                  </div>
+                                  <p className="text-sm font-semibold text-gray-900 truncate">
+                                    {getMachineName(entry.machineCode || entry.machineId || '') || 'Unknown'}
                                   </p>
                                 </div>
                                 
-                                {/* Details - stack vertically on mobile */}
-                                <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
-                                  <p className="break-words">
-                                    Machine: <span className="font-medium">{getMachineName(entry.machineCode || entry.machineId || '') || 'Unknown'}</span>
+                                {/* Target */}
+                                <div className="bg-white p-3 rounded-lg border border-gray-100">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Target</span>
+                                  </div>
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    {entry.targetQuantity?.toLocaleString() || '0'}
                                   </p>
-                                  <p>
-                                    Target: <span className="font-medium">{entry.targetQuantity}</span>
-                                  </p>
-                                  {(entry.achieved || entry.rejected) && (
-                                    <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1">
-                                      <span className="text-green-700 font-medium">
-                                        Achieved: {entry.achieved || 0}
-                                      </span>
-                                      <span className="text-red-700 font-medium">
-                                        Rejected: {entry.rejected || 0}
-                                      </span>
-                                    </div>
-                                  )}
                                 </div>
+                                
+                                {/* Achieved */}
+                                {entry.achieved !== undefined && (
+                                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                                      <span className="text-xs text-green-700 uppercase tracking-wide">Achieved</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-green-700">
+                                      {entry.achieved.toLocaleString()}
+                                    </p>
+                                    {entry.targetQuantity > 0 && (
+                                      <p className="text-xs text-green-600 mt-0.5">{efficiency}% efficiency</p>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Rejected */}
+                                {entry.rejected !== undefined && entry.rejected > 0 && (
+                                  <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <XCircle className="h-3.5 w-3.5 text-red-600" />
+                                      <span className="text-xs text-red-700 uppercase tracking-wide">Rejected</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-red-700">
+                                      {entry.rejected.toLocaleString()}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            
-                            {/* Right section: Hours and Badge - stack on mobile */}
-                            <div className="flex items-center gap-2 sm:gap-3 sm:flex-col sm:items-end flex-shrink-0">
-                              {entry.startTime && entry.endTime && (
-                                <span className="text-xs sm:text-sm font-medium bg-primary/10 text-primary px-2 py-1 rounded whitespace-nowrap">
-                                  {hours}h
-                                </span>
-                              )}
-                              <Badge 
-                                variant={entry.achieved > 0 || entry.rejected > 0 ? "default" : "secondary"}
-                                className="text-xs whitespace-nowrap"
-                              >
-                                {entry.achieved > 0 || entry.rejected > 0 ? "Completed" : "In Progress"}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No work entries found for selected period</p>
-                    <p className="text-sm">Your work history will appear here</p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="bg-gray-100 rounded-full p-4 mb-4">
+                      <BarChart3 className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No work entries found</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm">
+                      {workHistoryFilter === 'weekly' 
+                        ? 'No work entries found for the last 7 days. Your work history will appear here once you start working.'
+                        : 'No work entries found for this month. Your work history will appear here once you start working.'}
+                    </p>
                   </div>
                 )}
               </CardContent>
