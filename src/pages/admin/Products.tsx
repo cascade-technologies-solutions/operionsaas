@@ -27,7 +27,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { SortableProcessList } from '@/components/SortableProcessList';
 import { DeleteConfirmDialog } from '@/components/crud/DeleteConfirmDialog';
-import { useDeleteProduct, useDeleteProcess } from '@/hooks/useApi';
+import { useDeleteProduct, useDeleteProcess, useCreateProduct, useCreateProcess } from '@/hooks/useApi';
 
 interface Machine {
   _id: string;
@@ -55,9 +55,11 @@ const Products = () => {
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Delete hooks
+  // React Query hooks for automatic cache invalidation
   const deleteProduct = useDeleteProduct();
   const deleteProcess = useDeleteProcess();
+  const createProduct = useCreateProduct();
+  const createProcess = useCreateProcess();
   
   // Dialog states
   const [productDialog, setProductDialog] = useState(false);
@@ -160,28 +162,17 @@ const Products = () => {
         processes
       };
       
-      const response = await productService.createProduct(newProduct);
+      // Use React Query hook which will automatically invalidate cache and refresh the list
+      await createProduct.mutateAsync(newProduct);
       
-      // Optimistic update - add the new product to the state immediately
-      if (response.data) {
-        setProducts(prevProducts => [...prevProducts, response.data]);
-      }
-      
-      toast({
-        title: 'Success',
-        description: 'Product created successfully',
-      });
       setProductDialog(false);
       setProductForm({ name: '', dailyTarget: '', selectedProcesses: [] });
       
-      // Also reload data to ensure consistency
-      loadData(true);
+      // Reload data to refresh the products list
+      await loadData(true);
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to create product',
-        variant: 'destructive',
-      });
+      // Error toast is handled by the hook
+      console.error('Failed to create product:', error);
     }
   };
 
@@ -222,26 +213,25 @@ const Products = () => {
         return;
       }
 
-      // Create each process stage with user's provided names
-      for (const stage of validStages) {
-        const result = await processService.createProcess({
+      // Create each process stage using React Query hook
+      // This will automatically invalidate cache after all processes are created
+      const createPromises = validStages.map(stage => 
+        createProcess.mutateAsync({
           name: stage.name // User's descriptive name
-        });
-      }
+        })
+      );
 
-      toast({
-        title: 'Success',
-        description: `${validStages.length} process stage(s) created successfully`,
-      });
+      // Wait for all processes to be created
+      await Promise.all(createPromises);
+
       setProcessDialog(false);
       setProcessForm({ stages: [{ name: '' }] });
-      loadData();
+      
+      // Reload data to refresh the processes list - await to ensure it completes
+      await loadData(true);
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to create process stages',
-        variant: 'destructive',
-      });
+      // Error toasts are handled by the hook
+      console.error('Failed to create process stages:', error);
     }
   };
 
