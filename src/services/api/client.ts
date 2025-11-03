@@ -158,12 +158,12 @@ class ApiClient {
         
         useAuthStore.getState().updateTokens(accessToken);
       } catch (error) {
-        console.error('❌ Token refresh error:', error);
-        // Only logout if it's a critical error (not network issues)
-        if (error instanceof Error) {
-          if (error.message.includes('401') || error.message.includes('403')) {
-            useAuthStore.getState().logout();
-          }
+        // Only log token refresh errors if it's a critical auth error (not network issues)
+        // This prevents repeated logging during retries
+        if (error instanceof Error && 
+            (error.message.includes('401') || error.message.includes('403'))) {
+          console.error('❌ Token refresh failed:', error.message);
+          useAuthStore.getState().logout();
         }
         
         throw error;
@@ -300,17 +300,18 @@ class ApiClient {
              errorMessage.includes('origin') && 
              errorMessage.includes('blocked'));
           
-          if (isLikelyCorsError && attempt === 0) {
-            // Log detailed CORS error information on first attempt
-            console.error('❌ CORS Error detected:', {
-              error: errorMessage,
-              frontendOrigin: typeof window !== 'undefined' ? window.location.origin : 'unknown',
-              apiUrl: url,
-              hint: 'Backend must have CORS_ORIGINS configured to include: ' + 
-                    (typeof window !== 'undefined' ? window.location.origin : 'frontend origin')
-            });
-            toast.error('CORS configuration error: Backend must allow requests from this domain.');
-          }
+          if (isLikelyCorsError) {
+            // Log CORS error only once on first attempt (CORS errors are non-retryable)
+            if (attempt === 0) {
+              console.error('❌ CORS Error detected:', {
+                error: errorMessage,
+                frontendOrigin: typeof window !== 'undefined' ? window.location.origin : 'unknown',
+                apiUrl: url,
+                hint: 'Backend must have CORS_ORIGINS configured to include: ' + 
+                      (typeof window !== 'undefined' ? window.location.origin : 'frontend origin')
+              });
+              toast.error('CORS configuration error: Backend must allow requests from this domain.');
+            }
           
           // Don't retry on CORS errors - they are configuration issues that won't resolve
           if (isLikelyCorsError) {
@@ -342,10 +343,13 @@ class ApiClient {
               signal: AbortSignal.timeout(20000)
             });
           } catch (refreshError) {
-            console.error('Token refresh failed during retry:', refreshError);
-            // Only logout if it's a critical auth error
+            // Only log and logout if it's a critical auth error
+            // Don't log on every retry attempt - only on final attempt or critical errors
             if (refreshError instanceof Error && 
                 (refreshError.message.includes('401') || refreshError.message.includes('403'))) {
+              if (attempt === maxRetries) {
+                console.error('❌ Token refresh failed during request:', refreshError.message);
+              }
               useAuthStore.getState().logout();
             }
             throw refreshError;
@@ -393,7 +397,15 @@ class ApiClient {
             error: response.statusText || 'Unknown error',
             status: response.status
           }));
-          console.error('❌ API Error Response:', errorData);
+          
+          // Only log errors on final attempt or non-retryable errors to prevent repeated logging
+          const isLastAttempt = attempt === maxRetries;
+          const isNonRetryableError = response.status === 401 || response.status === 403 || 
+                                      (response.status >= 400 && response.status < 500 && response.status !== 429);
+          
+          if (isLastAttempt || (isNonRetryableError && attempt === 0)) {
+            console.error('❌ API Error Response:', errorData);
+          }
           
           // Create ApiError with full details for all error statuses
           let errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
@@ -401,7 +413,9 @@ class ApiClient {
           // Provide more specific messages for common errors
           if (response.status === 503) {
             errorMessage = 'Backend server is unavailable. Please check if the API server is running.';
-            console.error('⚠️ Backend returned 503 - Server may be down or overloaded');
+            if (isLastAttempt) {
+              console.error('⚠️ Backend returned 503 - Server may be down or overloaded');
+            }
           } else if (response.status === 502) {
             errorMessage = 'Bad gateway - Backend server may be restarting or misconfigured.';
           } else if (response.status === 504) {
@@ -489,11 +503,11 @@ class ApiClient {
           }
           
           if (error.message.includes('CORS') || error.message.includes('Access-Control-Allow-Origin')) {
-            console.error('❌ CORS Error detected: Backend is not configured to allow requests from this origin.');
-            console.error('   Frontend origin:', typeof window !== 'undefined' ? window.location.origin : 'unknown');
-            console.error('   API URL:', this.baseURL);
-            console.error('   Backend must add CORS headers to allow:', typeof window !== 'undefined' ? window.location.origin : 'frontend origin');
+            // Only log CORS error once on first attempt (already handled in fetch catch block, but log here as fallback)
             if (attempt === 0) {
+              console.error('❌ CORS Error detected: Backend is not configured to allow requests from this origin.');
+              console.error('   Frontend origin:', typeof window !== 'undefined' ? window.location.origin : 'unknown');
+              console.error('   API URL:', this.baseURL);
               toast.error('CORS error: Backend server needs to allow requests from this domain.');
             }
             // Don't retry CORS errors - they won't resolve by retrying
@@ -516,6 +530,7 @@ class ApiClient {
             this.baseURL.startsWith('http://');
           
           if (isNetworkError && mightBeCors && attempt === 0) {
+            // Only log warning on first attempt
             console.warn('⚠️ Network error might be CORS related. Check if API URL uses HTTPS.');
             toast.error('Connection error. This might be a CORS configuration issue.');
           }

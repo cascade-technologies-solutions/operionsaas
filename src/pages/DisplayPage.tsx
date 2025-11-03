@@ -256,167 +256,249 @@ export default function DisplayPage() {
         {viewType === 'analytics' ? (
           <>
             {/* Production by Product Analytics Chart */}
-            {(data.products || []).map((product: any, productIndex: number) => (
-              <Card key={productIndex} className="bg-gray-800 border-gray-700 mb-8">
-                <CardHeader>
-                  <CardTitle className="text-white text-2xl flex items-center">
-                    <BarChart3 className="h-6 w-6 mr-2" />
-                    {product.productName} - Production by Date
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Daily production trends for {product.productName}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 sm:h-80 lg:h-96">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={(product.dailyData || data.hourlyData || []).map((dayData: any, index: number) => {
-                        // Handle daily data
-                        let date, displayDate;
-                        try {
-                          if (dayData.date) {
-                            const dateObj = new Date(dayData.date);
-                            if (!isNaN(dateObj.getTime())) {
-                              date = dayData.date;
-                              displayDate = dateObj.getDate().toString(); // Show day number (1, 2, 3, etc.)
-                            } else {
-                              // Fallback if date is invalid
-                              date = new Date().toISOString().split('T')[0];
-                              displayDate = `${index + 1}`;
-                            }
+            {(data.products || []).map((product: any, productIndex: number) => {
+              // Get daily data for this product
+              const dailyDataArray = product.dailyData || data.hourlyData || [];
+              
+              // Validate and process data
+              let chartData: any[] = [];
+              try {
+                if (Array.isArray(dailyDataArray) && dailyDataArray.length > 0) {
+                  chartData = dailyDataArray
+                    .filter((dayData: any) => dayData != null) // Filter out null/undefined
+                    .map((dayData: any, index: number) => {
+                      // Handle daily data
+                      let date, displayDate;
+                      try {
+                        if (dayData.date) {
+                          const dateObj = new Date(dayData.date);
+                          if (!isNaN(dateObj.getTime())) {
+                            date = dayData.date;
+                            displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                           } else {
-                            // Fallback if no date
+                            // Fallback if date is invalid
                             date = new Date().toISOString().split('T')[0];
                             displayDate = `${index + 1}`;
                           }
-                        } catch (error) {
-                          // Fallback if any error occurs
+                        } else {
+                          // Fallback if no date
                           date = new Date().toISOString().split('T')[0];
                           displayDate = `${index + 1}`;
                         }
-                        
-                        return {
-                          date,
-                          displayDate,
-                          production: dayData.totalAchieved || dayData.production || 0,
-                          rejected: dayData.totalRejected || dayData.rejected || 0,
-                          efficiency: dayData.totalTarget > 0 ? (dayData.totalAchieved / dayData.totalTarget) * 100 : 0
-                        };
-                      })}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis 
-                          dataKey="displayDate" 
-                          stroke="#9CA3AF"
-                          fontSize={12}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis 
-                          stroke="#9CA3AF"
-                          fontSize={14}
-                          label={{ value: 'Production Count', angle: -90, position: 'insideLeft', style: { fontSize: '14px' } }}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#1F2937', 
-                            border: '1px solid #374151',
-                            borderRadius: '8px',
-                            color: '#F9FAFB'
-                          }}
-                          formatter={(value, name) => [value, name === 'production' ? 'Production' : 'Rejected']}
-                          labelFormatter={(label, payload) => {
-                            const data = payload?.[0]?.payload;
-                            return data ? `${data.date} - ${label}` : label;
-                          }}
-                        />
-                        <Bar 
-                          dataKey="production" 
-                          fill="#10B981" 
-                          name="production"
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={40}
-                        />
-                        <Bar 
-                          dataKey="rejected" 
-                          fill="#EF4444" 
-                          name="rejected"
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={40}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      } catch (error) {
+                        // Fallback if any error occurs
+                        date = new Date().toISOString().split('T')[0];
+                        displayDate = `${index + 1}`;
+                      }
+                      
+                      return {
+                        date,
+                        displayDate,
+                        production: Number(dayData.totalAchieved || dayData.production || 0),
+                        rejected: Number(dayData.totalRejected || dayData.rejected || 0),
+                        efficiency: dayData.totalTarget > 0 
+                          ? (Number(dayData.totalAchieved || dayData.production || 0) / Number(dayData.totalTarget)) * 100 
+                          : 0
+                      };
+                    })
+                    .filter((item: any) => item.production > 0 || item.rejected > 0); // Filter out zero-only entries
+                }
+              } catch (error: any) {
+                console.error('Error processing chart data:', error);
+                chartData = [];
+              }
+
+              const hasData = chartData.length > 0;
+
+              return (
+                <Card key={productIndex} className="bg-gray-800 border-gray-700 mb-8">
+                  <CardHeader>
+                    <CardTitle className="text-white text-2xl flex items-center">
+                      <BarChart3 className="h-6 w-6 mr-2" />
+                      {product.productName} - Production by Date
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Daily production trends for {product.productName}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {hasData ? (
+                      <div className="h-64 sm:h-80 lg:h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                            <XAxis 
+                              dataKey="displayDate" 
+                              stroke="#9CA3AF"
+                              fontSize={12}
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                            />
+                            <YAxis 
+                              stroke="#9CA3AF"
+                              fontSize={14}
+                              label={{ value: 'Production Count', angle: -90, position: 'insideLeft', style: { fontSize: '14px' } }}
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: '#1F2937', 
+                                border: '1px solid #374151',
+                                borderRadius: '8px',
+                                color: '#F9FAFB'
+                              }}
+                              formatter={(value, name) => [value, name === 'production' ? 'Production' : 'Rejected']}
+                              labelFormatter={(label, payload) => {
+                                const data = payload?.[0]?.payload;
+                                return data ? `${data.date} - ${label}` : label;
+                              }}
+                            />
+                            <Bar 
+                              dataKey="production" 
+                              fill="#10B981" 
+                              name="production"
+                              radius={[2, 2, 0, 0]}
+                              maxBarSize={40}
+                            />
+                            <Bar 
+                              dataKey="rejected" 
+                              fill="#EF4444" 
+                              name="rejected"
+                              radius={[2, 2, 0, 0]}
+                              maxBarSize={40}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 sm:h-80 lg:h-96 flex items-center justify-center border-2 border-dashed border-gray-600 rounded-lg">
+                        <div className="text-center space-y-4">
+                          <BarChart3 className="h-16 w-16 mx-auto text-gray-500 opacity-50" />
+                          <div>
+                            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+                              No Production Data Available
+                            </h3>
+                            <p className="text-gray-500 text-sm">
+                              No production data found for {product.productName} in the selected date range.
+                            </p>
+                            <p className="text-gray-500 text-xs mt-2">
+                              Data will appear here once work entries are submitted for this product.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
 
             {/* Process Stages Analytics Chart */}
-            {(data.products || []).map((product: any, productIndex: number) => (
-              <Card key={`process-${productIndex}`} className="bg-gray-800 border-gray-700 mb-8">
-                <CardHeader>
-                  <CardTitle className="text-white text-2xl flex items-center">
-                    <BarChart3 className="h-6 w-6 mr-2" />
-                    {product.productName} - Process Stages Analytics
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Achieved vs Rejected quantities by process stage for {product.productName}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 sm:h-80 lg:h-96">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={(product.processes || []).map((process: any) => ({
-                        name: process.processName,
-                        processName: process.processName,
-                        stageOrder: process.stageOrder,
-                        achieved: process.achievedQuantity,
-                        rejected: process.rejectedQuantity
-                      })).sort((a: any, b: any) => a.stageOrder - b.stageOrder)}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                        <XAxis 
-                          dataKey="name" 
-                          stroke="#9CA3AF"
-                          fontSize={14}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis 
-                          stroke="#9CA3AF"
-                          fontSize={14}
-                          label={{ value: 'Quantity', angle: -90, position: 'insideLeft', style: { fontSize: '14px' } }}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#1F2937', 
-                            border: '1px solid #374151',
-                            borderRadius: '8px',
-                            color: '#F9FAFB'
-                          }}
-                          formatter={(value, name) => [value, name === 'achieved' ? 'Achieved' : 'Rejected']}
-                          labelFormatter={(label) => `Process: ${label}`}
-                        />
-                        <Bar 
-                          dataKey="achieved" 
-                          fill="#10B981" 
-                          name="achieved"
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={40}
-                        />
-                        <Bar 
-                          dataKey="rejected" 
-                          fill="#EF4444" 
-                          name="rejected"
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={40}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {(data.products || []).map((product: any, productIndex: number) => {
+              // Validate and process process data
+              const processesArray = product.processes || [];
+              let processChartData: any[] = [];
+              
+              try {
+                if (Array.isArray(processesArray) && processesArray.length > 0) {
+                  processChartData = processesArray
+                    .filter((process: any) => process != null && process.processName)
+                    .map((process: any) => ({
+                      name: process.processName || 'Unknown',
+                      processName: process.processName || 'Unknown',
+                      stageOrder: Number(process.stageOrder || 0),
+                      achieved: Number(process.achievedQuantity || 0),
+                      rejected: Number(process.rejectedQuantity || 0)
+                    }))
+                    .sort((a: any, b: any) => a.stageOrder - b.stageOrder)
+                    .filter((item: any) => item.achieved > 0 || item.rejected > 0); // Filter out zero-only entries
+                }
+              } catch (error: any) {
+                console.error('Error processing process chart data:', error);
+                processChartData = [];
+              }
+
+              const hasProcessData = processChartData.length > 0;
+
+              return (
+                <Card key={`process-${productIndex}`} className="bg-gray-800 border-gray-700 mb-8">
+                  <CardHeader>
+                    <CardTitle className="text-white text-2xl flex items-center">
+                      <BarChart3 className="h-6 w-6 mr-2" />
+                      {product.productName} - Process Stages Analytics
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Achieved vs Rejected quantities by process stage for {product.productName}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {hasProcessData ? (
+                      <div className="h-64 sm:h-80 lg:h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={processChartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#9CA3AF"
+                              fontSize={14}
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                            />
+                            <YAxis 
+                              stroke="#9CA3AF"
+                              fontSize={14}
+                              label={{ value: 'Quantity', angle: -90, position: 'insideLeft', style: { fontSize: '14px' } }}
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: '#1F2937', 
+                                border: '1px solid #374151',
+                                borderRadius: '8px',
+                                color: '#F9FAFB'
+                              }}
+                              formatter={(value, name) => [value, name === 'achieved' ? 'Achieved' : 'Rejected']}
+                              labelFormatter={(label) => `Process: ${label}`}
+                            />
+                            <Bar 
+                              dataKey="achieved" 
+                              fill="#10B981" 
+                              name="achieved"
+                              radius={[2, 2, 0, 0]}
+                              maxBarSize={40}
+                            />
+                            <Bar 
+                              dataKey="rejected" 
+                              fill="#EF4444" 
+                              name="rejected"
+                              radius={[2, 2, 0, 0]}
+                              maxBarSize={40}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 sm:h-80 lg:h-96 flex items-center justify-center border-2 border-dashed border-gray-600 rounded-lg">
+                        <div className="text-center space-y-4">
+                          <BarChart3 className="h-16 w-16 mx-auto text-gray-500 opacity-50" />
+                          <div>
+                            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+                              No Process Data Available
+                            </h3>
+                            <p className="text-gray-500 text-sm">
+                              No process stage data found for {product.productName}.
+                            </p>
+                            <p className="text-gray-500 text-xs mt-2">
+                              Data will appear here once work entries are processed for this product.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
 
             {/* Product Plan Table */}
             <Card className="bg-gray-800 border-gray-700">

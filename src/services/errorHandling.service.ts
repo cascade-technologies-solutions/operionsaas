@@ -23,6 +23,44 @@ class ErrorHandlingService {
   private errors: AppError[] = [];
   private maxErrors = 100;
   private errorListeners: Set<(error: AppError) => void> = new Set();
+  // Deduplication: track recent errors by message + stack to prevent repeated logging
+  private recentErrors: Map<string, number> = new Map();
+  private readonly DEDUPLICATION_WINDOW_MS = 5000; // 5 seconds window
+
+  private getErrorKey(error: AppError): string {
+    // Create a unique key based on message and stack trace (if available)
+    const message = error.message || '';
+    const stack = error.stack || '';
+    const context = error.context || '';
+    // Use a hash of message + stack + context to identify duplicate errors
+    return `${context}:${message.substring(0, 100)}:${stack.substring(0, 200)}`;
+  }
+
+  private isDuplicateError(error: AppError): boolean {
+    const key = this.getErrorKey(error);
+    const lastSeen = this.recentErrors.get(key);
+    const now = Date.now();
+
+    if (lastSeen && (now - lastSeen) < this.DEDUPLICATION_WINDOW_MS) {
+      // Same error occurred within the deduplication window
+      return true;
+    }
+
+    // Update the timestamp for this error
+    this.recentErrors.set(key, now);
+    
+    // Clean up old entries (keep map size reasonable)
+    if (this.recentErrors.size > 100) {
+      const cutoffTime = now - this.DEDUPLICATION_WINDOW_MS;
+      for (const [errorKey, timestamp] of this.recentErrors.entries()) {
+        if (timestamp < cutoffTime) {
+          this.recentErrors.delete(errorKey);
+        }
+      }
+    }
+
+    return false;
+  }
 
   handleError(error: unknown, options: ErrorHandlerOptions = {}): AppError {
     const {
@@ -34,13 +72,26 @@ class ErrorHandlingService {
 
     const appError = this.normalizeError(error, context);
     
-    // Store error
+    // Check if this is a duplicate error within the deduplication window
+    const isDuplicate = this.isDuplicateError(appError);
+    
+    // Store error (always store, but may skip logging/toast)
     this.errors.unshift(appError);
     if (this.errors.length > this.maxErrors) {
       this.errors.pop();
     }
 
-    // Log to console (removed for production)
+    // Skip logging/toast/reporting for duplicate errors to prevent spam
+    if (isDuplicate) {
+      // Still notify listeners but skip other actions
+      this.errorListeners.forEach(listener => listener(appError));
+      return appError;
+    }
+
+    // Log to console only in development
+    if (logToConsole && import.meta.env.DEV) {
+      console.error('Error:', appError.message, appError);
+    }
 
     // Show toast notification
     if (showToast) {
