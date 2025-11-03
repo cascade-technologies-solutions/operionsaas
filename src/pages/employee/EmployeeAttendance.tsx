@@ -86,7 +86,6 @@ export default function EmployeeAttendance() {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayAttendance, setTodayAttendance] = useState<Attendance | null>(null);
-  const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
   const [allWorkEntries, setAllWorkEntries] = useState<WorkEntry[]>([]);
   const [todayWorkEntries, setTodayWorkEntries] = useState<WorkEntry[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -94,7 +93,6 @@ export default function EmployeeAttendance() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   
   // Filter states
-  const [attendanceFilter, setAttendanceFilter] = useState<'weekly' | 'monthly'>('weekly');
   const [workHistoryFilter, setWorkHistoryFilter] = useState<'weekly' | 'monthly'>('weekly');
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -133,39 +131,6 @@ export default function EmployeeAttendance() {
       toast.error('Failed to load today\'s attendance');
     }
   }, [user]);
-
-  const loadAttendanceHistory = useCallback(async () => {
-    try {
-      setLoadingHistory(true);
-      const userId = user?.id || user?._id;
-      if (!userId) {
-        // No user ID available for history
-        return;
-      }
-
-      // Loading attendance history for user
-      const response = await attendanceService.getAttendanceByEmployee(userId);
-      
-      const historyData = response.data;
-      
-      if (Array.isArray(historyData)) {
-        setAttendanceHistory(historyData);
-        // Attendance history loaded
-        toast.success(`Loaded ${historyData.length} attendance records`);
-      } else {
-        setAttendanceHistory([]);
-        // No attendance history found or invalid format
-      }
-    } catch (error) {
-      // Failed to load attendance history
-      setAttendanceHistory([]);
-      toast.error('Failed to load attendance history');
-    } finally {
-      setLoadingHistory(false);
-    }
-  }, [user]);
-
-
 
   // Load work entries (today's and all history)
   const loadAllWorkEntries = useCallback(async () => {
@@ -222,11 +187,10 @@ export default function EmployeeAttendance() {
   useEffect(() => {
     if (user?.id || user?._id) {
       loadTodayAttendance();
-      loadAttendanceHistory();
       loadAllWorkEntries();
       loadMachines();
     }
-  }, [user, loadTodayAttendance, loadAttendanceHistory, loadAllWorkEntries, loadMachines]);
+  }, [user, loadTodayAttendance, loadAllWorkEntries, loadMachines]);
 
   // Calculate total work hours from today's completed work entries only
   const calculateTotalWorkHours = useMemo(() => {
@@ -320,27 +284,6 @@ export default function EmployeeAttendance() {
     });
   }, [allWorkEntries, workHistoryFilter, machines]);
 
-  // Filter attendance history based on selected period
-  const filteredAttendanceHistory = useMemo(() => {
-    const now = new Date();
-    let startDate: Date;
-
-    switch (attendanceFilter) {
-      case 'weekly':
-        startDate = startOfWeek(now, { weekStartsOn: 1 }); // Monday start
-        break;
-      case 'monthly':
-        startDate = startOfMonth(now);
-        break;
-      default:
-        startDate = startOfWeek(now, { weekStartsOn: 1 }); // Default to weekly
-    }
-
-    return attendanceHistory.filter(attendance => {
-      const attendanceDate = new Date(attendance.createdAt || attendance.date);
-      return attendanceDate >= startDate;
-    });
-  }, [attendanceHistory, attendanceFilter]);
 
   // Calculate statistics for filtered data
   const filteredStats = useMemo(() => {
@@ -366,10 +309,9 @@ export default function EmployeeAttendance() {
       workHours: Math.round(totalWorkHours * 100) / 100,
       production: totalProduction,
       rejections: totalRejections,
-      entries: filteredWorkEntries.length,
-      attendanceDays: filteredAttendanceHistory.length
+      entries: filteredWorkEntries.length
     };
-  }, [filteredWorkEntries, filteredAttendanceHistory]);
+  }, [filteredWorkEntries]);
 
   // Get the latest check-out time from completed work entries
   const getLatestCheckOutTime = useMemo(() => {
@@ -429,7 +371,6 @@ export default function EmployeeAttendance() {
           <Button 
             onClick={() => {
               loadTodayAttendance();
-              loadAttendanceHistory();
               loadAllWorkEntries();
             }}
             variant="outline"
@@ -552,16 +493,11 @@ export default function EmployeeAttendance() {
 
         {/* Main Content Tabs - Responsive */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-2">
             <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
               <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Overview</span>
               <span className="sm:hidden">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="attendance-history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Attendance</span>
-              <span className="sm:hidden">Attend.</span>
             </TabsTrigger>
             <TabsTrigger value="work-history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
               <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -660,121 +596,6 @@ export default function EmployeeAttendance() {
             )}
           </TabsContent>
 
-          {/* Attendance History Tab */}
-          <TabsContent value="attendance-history" className="space-y-6">
-            <Card className="shadow-lg">
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                      <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
-                      Attendance History
-                    </CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">
-                      Your attendance records with work hours
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
-                    <Select value={attendanceFilter} onValueChange={(value: 'weekly' | 'monthly') => setAttendanceFilter(value)}>
-                      <SelectTrigger className="w-full sm:w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loadingHistory ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span>Loading attendance history...</span>
-                  </div>
-                ) : filteredAttendanceHistory.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-out</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Hours</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredAttendanceHistory
-                          .sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime())
-                          .map((attendance, index) => {
-                            const attendanceDate = new Date(attendance.date || attendance.createdAt);
-                            const checkInTime = attendance.checkIn?.time ? new Date(attendance.checkIn.time) : null;
-                            const checkOutTime = attendance.checkOut?.time ? new Date(attendance.checkOut.time) : null;
-                            const status = attendance.status || 'present';
-                            
-                            // Use workHours from API response if available, otherwise calculate
-                            let workHours = 0;
-                            if ((attendance as any).workHours !== undefined) {
-                              workHours = (attendance as any).workHours;
-                            } else if (checkInTime && checkOutTime) {
-                              workHours = calculateHours(checkInTime, checkOutTime);
-                            } else if (checkInTime && !checkOutTime) {
-                              // If no checkout time but it's today, calculate from checkin to now
-                              const today = new Date();
-                              const checkInDate = new Date(checkInTime);
-                              const isToday = checkInDate.toDateString() === today.toDateString();
-                              if (isToday) {
-                                workHours = calculateHours(checkInTime, today);
-                              }
-                            }
-                            
-                            return (
-                              <tr key={attendance._id || index} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  {formatDate(attendanceDate)}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  {attendanceDate.toLocaleDateString('en-US', { weekday: 'long' })}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  {checkInTime ? formatTime(checkInTime) : '-'}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  {checkOutTime ? formatTime(checkOutTime) : 'On duty'}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-medium">
-                                  {workHours > 0 ? `${formatHours(workHours)}` : '-'}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                  <Badge 
-                                    variant={status === 'present' ? 'default' : status === 'absent' ? 'destructive' : 'secondary'}
-                                    className="text-xs"
-                                  >
-                                    {status === 'present' ? 'Present' : 
-                                     status === 'absent' ? 'Absent' : 
-                                     status === 'half-day' ? 'Half Day' : 'Present'}
-                                  </Badge>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No attendance records found for selected period</p>
-                    <p className="text-sm">Your attendance history will appear here</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Work History Tab */}
           <TabsContent value="work-history" className="space-y-4 sm:space-y-6">
