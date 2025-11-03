@@ -8,6 +8,19 @@ import { toast } from 'sonner';
 let API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
 let WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:3000' : 'ws://localhost:3000');
 
+// Helper function to upgrade HTTP to HTTPS if page is loaded over HTTPS
+function upgradeToHTTPS(url: string): string {
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://');
+    }
+    if (url.startsWith('ws://')) {
+      url = url.replace('ws://', 'wss://');
+    }
+  }
+  return url;
+}
+
 // Auto-upgrade HTTP to HTTPS if page is loaded over HTTPS (to prevent mixed content errors)
 if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
   // If page is HTTPS, upgrade HTTP API URLs to HTTPS
@@ -19,6 +32,23 @@ if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
     WS_URL = WS_URL.replace('ws://', 'wss://');
     console.warn('⚠️ Upgraded WebSocket URL to WSS to prevent mixed content errors:', WS_URL);
   }
+}
+
+// Export function to get upgraded API URL for use in other services
+export function getApiUrl(): string {
+  const envUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+  return upgradeToHTTPS(envUrl);
+}
+
+// Export function to get base URL (without /api) for health checks
+export function getBaseUrl(): string {
+  const apiUrl = getApiUrl();
+  // If relative URL, return empty string (browser will use current origin)
+  if (apiUrl.startsWith('/')) {
+    return '';
+  }
+  // Remove /api suffix if present
+  return apiUrl.replace(/\/api\/?$/, '');
 }
 
 

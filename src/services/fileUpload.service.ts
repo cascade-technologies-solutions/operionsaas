@@ -234,8 +234,13 @@ class FileUploadService {
         reject(new Error('Upload cancelled'));
       });
       
-      // Prepare request
-      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}${endpoint}`;
+      // Prepare request - use upgraded URL to prevent mixed content errors
+      const baseApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      // Upgrade HTTP to HTTPS if page is loaded over HTTPS
+      const apiUrl = (typeof window !== 'undefined' && window.location.protocol === 'https:' && baseApiUrl.startsWith('http://'))
+        ? baseApiUrl.replace('http://', 'https://')
+        : baseApiUrl;
+      const url = `${apiUrl}${endpoint}`;
       xhr.open('POST', url);
       
       // Add auth header
