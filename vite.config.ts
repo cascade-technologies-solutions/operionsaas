@@ -35,13 +35,17 @@ export default defineConfig(({ mode }) => ({
     sourcemap: mode === 'production' ? false : true, // Disable source maps in production for security
     minify: 'esbuild',
     chunkSizeWarningLimit: 1000,
+    assetsDir: 'assets',
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
           'vendor-utils': ['date-fns', 'zod', 'zustand']
-        }
+        },
+        assetFileNames: 'assets/[name].[ext]',
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js'
       }
     }
   },
