@@ -769,32 +769,27 @@ const Products = () => {
             </div>
 
             {/* Processes List */}
-            <div className="mt-6" key={`processes-${refreshKey}`}>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4">Processes</h3>
+            <div className="space-y-4 mt-6" key={`processes-${refreshKey}`}>
+              <h3 className="text-lg font-semibold">All Processes</h3>
               {processes.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm sm:text-base">
+                <div className="text-center py-8 text-muted-foreground">
                   No processes found. Create your first process above.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-                  {processes.map((process, index) => (
-                    <div 
-                      key={`${process._id || process.id || index}-${refreshKey}`} 
-                      className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg hover:bg-accent transition-colors"
-                    >
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs sm:text-sm font-medium flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm sm:text-base truncate">{process.name}</div>
-                        {process.dailyTarget && (
-                          <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                            Target: {process.dailyTarget}
+                <div className="space-y-2">
+                  {processes
+                    .map((process, index) => (
+                      <div key={`${process._id}-${refreshKey}`} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
+                            {index + 1}
                           </div>
-                        )}
+                          <div>
+                            <div className="font-medium">{process.name}</div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
