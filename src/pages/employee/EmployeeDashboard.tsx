@@ -122,12 +122,21 @@ export default function EmployeeDashboard() {
     if (!selectedProduct || !products.length || !processes.length) return [];
     
     const product = products.find(p => p._id === selectedProduct);
-    if (!product || !product.processes) return [];
+    if (!product || !product.processes || !Array.isArray(product.processes)) return [];
     
     // Get only processes that belong to this product
-    const productProcessIds = product.processes.map(p => p.processId);
-    const filtered = processes.filter(proc => productProcessIds.includes(proc._id));
+    // Handle both string and ObjectId comparisons for processId
+    const productProcessIds = product.processes.map(p => {
+      const pid = p.processId;
+      if (!pid) return null;
+      return typeof pid === 'string' ? pid : String(pid);
+    }).filter((id): id is string => id !== null);
     
+    const filtered = processes.filter(proc => {
+      if (!proc._id) return false;
+      const procIdStr = typeof proc._id === 'string' ? proc._id : String(proc._id);
+      return productProcessIds.includes(procIdStr);
+    });
     
     return filtered;
   }, [selectedProduct, products, processes]);
@@ -396,25 +405,8 @@ export default function EmployeeDashboard() {
     setRejectedQuantity('');
   }, [selectedProduct, selectedProcess, selectedMachine]);
 
-  // Filter products based on selected process
-  const filteredProducts = useMemo(() => {
-    if (!selectedProcess) return products;
-    return products.filter(product => 
-      product.processes?.some(proc => proc.processId === selectedProcess)
-    );
-  }, [selectedProcess, products]);
-
-  // Update selected product when process changes
-  useEffect(() => {
-    if (selectedProcess && filteredProducts.length > 0) {
-      const currentProduct = products.find(p => p._id === selectedProduct);
-      const isCurrentProductValid = currentProduct?.processes?.some(proc => proc.processId === selectedProcess);
-      
-      if (!isCurrentProductValid) {
-        setSelectedProduct(filteredProducts[0]._id);
-      }
-    }
-  }, [selectedProcess, filteredProducts, selectedProduct, products]);
+  // All products are shown - no filtering based on process
+  // Products are filtered by factory at the backend level
 
 
   // Connect to WebSocket for real-time updates
@@ -1588,8 +1580,8 @@ export default function EmployeeDashboard() {
                         <SelectValue placeholder="Choose product" />
                       </SelectTrigger>
                       <SelectContent>
-                        {filteredProducts.length > 0 ? (
-                          filteredProducts.map((product) => (
+                        {products.length > 0 ? (
+                          products.map((product) => (
                             <SelectItem key={product._id} value={product._id}>
                               {product.name} - T-{product.dailyTarget || 0}
                             </SelectItem>
