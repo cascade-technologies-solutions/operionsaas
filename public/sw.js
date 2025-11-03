@@ -1,5 +1,5 @@
 // Service Worker for Operion PWA
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v1.1.0'; // Bumped to force service worker update (API requests bypass fix)
 const STATIC_CACHE = `operion-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `operion-dynamic-${CACHE_VERSION}`;
 const API_CACHE = `operion-api-${CACHE_VERSION}`;
@@ -57,13 +57,15 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // CRITICAL FIX: Don't intercept ANY API requests - let them pass through
+  // CRITICAL FIX: Don't intercept ANY API requests (including OPTIONS preflight) - let them pass through
   // Service worker interception of API requests causes CORS preflight failures
   // because the service worker's fetch() doesn't properly handle OPTIONS requests
   // and can't preserve the origin context needed for CORS
+  // This applies to ALL HTTP methods (GET, POST, PUT, DELETE, PATCH, OPTIONS, etc.)
   if (isAPIRequest(request)) {
-    // Don't call event.respondWith() - this allows the request to bypass the service worker
+    // Don't call event.respondWith() - this allows the request to bypass the service worker entirely
     // The browser will handle CORS preflight correctly without service worker interference
+    // By returning early without responding, the browser's native fetch handles the request
     return;
   }
 
