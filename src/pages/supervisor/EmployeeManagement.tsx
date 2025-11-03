@@ -127,6 +127,10 @@ export default function EmployeeManagement() {
   };
 
   const handleResetDevice = async (userId: string, userName: string) => {
+    if (!userId) {
+      toast.error('User ID is required');
+      return;
+    }
     setActionLoading(true);
     setResetLoadingId(userId);
     try {
@@ -282,12 +286,12 @@ export default function EmployeeManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleResetDevice(employee._id!, `${employee.profile.firstName} ${employee.profile.lastName}`)}
-                        disabled={actionLoading || resetLoadingId === employee._id}
+                        onClick={() => handleResetDevice(employee._id || employee.id || '', `${employee.profile.firstName} ${employee.profile.lastName}`)}
+                        disabled={actionLoading || resetLoadingId === (employee._id || employee.id) || (!employee._id && !employee.id)}
                         className="h-9 w-9 p-0"
                         title="Reset Device"
                       >
-                        {actionLoading || resetLoadingId === employee._id ? (
+                        {actionLoading || resetLoadingId === (employee._id || employee.id) ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Smartphone className="h-4 w-4" />
