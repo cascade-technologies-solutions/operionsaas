@@ -57,15 +57,21 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Handle different types of requests
+  // CRITICAL FIX: Don't intercept ANY API requests - let them pass through
+  // Service worker interception of API requests causes CORS preflight failures
+  // because the service worker's fetch() doesn't properly handle OPTIONS requests
+  // and can't preserve the origin context needed for CORS
+  if (isAPIRequest(request)) {
+    // Don't call event.respondWith() - this allows the request to bypass the service worker
+    // The browser will handle CORS preflight correctly without service worker interference
+    return;
+  }
+
+  // Handle different types of requests for non-API resources only
   if (request.method === 'GET') {
     // Static assets - Cache First strategy
     if (isStaticAsset(request)) {
       event.respondWith(cacheFirst(request, STATIC_CACHE));
-    }
-    // API requests - Network First with fallback to cache
-    else if (isAPIRequest(request)) {
-      event.respondWith(networkFirst(request, API_CACHE));
     }
     // Other requests - Stale While Revalidate
     else {
@@ -162,10 +168,12 @@ function isStaticAsset(request) {
   return url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/);
 }
 
-// Check if request is for API
+// Check if request is for API (both same-origin and cross-origin)
 function isAPIRequest(request) {
   const url = new URL(request.url);
-  return url.pathname.startsWith('/api/');
+  // Check if pathname starts with /api/ OR if hostname includes 'api.'
+  // This catches both same-origin (/api/...) and cross-origin (api.cascade-erp.in) API requests
+  return url.pathname.startsWith('/api/') || url.hostname.includes('api.');
 }
 
 // Background sync for offline data
