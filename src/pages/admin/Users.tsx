@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Edit, Trash2, Users, UserCheck, UserX, RotateCcw, Eye, MoreVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, UserCheck, UserX, RotateCcw, Eye, Search } from 'lucide-react';
 import { userService } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -47,6 +47,7 @@ const UserManagement = () => {
   const { user } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [viewingUser, setViewingUser] = useState<User | null>(null);
@@ -353,8 +354,36 @@ const UserManagement = () => {
     setSelectedProcesses([]);
   };
 
+  // Search filter function
+  const filterUsers = (userList: User[]) => {
+    if (!searchTerm.trim()) {
+      return userList;
+    }
+    
+    const searchLower = searchTerm.toLowerCase();
+    return userList.filter(u => {
+      const fullName = `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const phone = (u.profile?.phone || '').toLowerCase();
+      const role = (u.role || '').toLowerCase();
+      const username = (u.username || '').toLowerCase();
+      
+      return (
+        fullName.includes(searchLower) ||
+        email.includes(searchLower) ||
+        phone.includes(searchLower) ||
+        role.includes(searchLower) ||
+        username.includes(searchLower)
+      );
+    });
+  };
+
   const supervisors = users.filter(u => u?.role === 'supervisor');
   const employees = users.filter(u => u?.role === 'employee');
+  
+  const filteredAllUsers = filterUsers(users);
+  const filteredSupervisors = filterUsers(supervisors);
+  const filteredEmployees = filterUsers(employees);
 
   return (
     <Layout title="User Management">
@@ -642,6 +671,20 @@ const UserManagement = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search users by name, email, phone, or role..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full md:w-[400px] grid-cols-3">
           <TabsTrigger value="all">All Users</TabsTrigger>
@@ -660,25 +703,24 @@ const UserManagement = () => {
                       <TableHead className="hidden md:table-cell">Email</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center">
+                        <TableCell colSpan={5} className="text-center">
                           Loading...
                         </TableCell>
                       </TableRow>
-                    ) : users.length === 0 ? (
+                    ) : filteredAllUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center">
-                          No users found. Add your first user.
+                        <TableCell colSpan={5} className="text-center">
+                          {searchTerm ? 'No users found matching your search.' : 'No users found. Add your first user.'}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      users.map((user) => (
+                      filteredAllUsers.map((user) => (
                         <TableRow key={user.id || user._id || user.username}>
                           <TableCell className="font-medium">
                             {user.profile.firstName} {user.profile.lastName}
@@ -689,21 +731,15 @@ const UserManagement = () => {
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">{user.profile.phone}</TableCell>
                           <TableCell>
-                            <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                              {user.isActive ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   title="View Details"
-                                  className="w-full sm:w-auto"
+                                  className="w-auto"
                                 >
-                                  <Eye className="h-4 w-4 sm:mr-0" />
-                                  <span className="ml-2 sm:hidden">Actions</span>
+                                  <Eye className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
@@ -754,8 +790,13 @@ const UserManagement = () => {
         <TabsContent value="supervisors" className="mt-6">
           <Card>
             <div className="p-6">
-              <div className="grid gap-4">
-                {supervisors.map((supervisor) => (
+              {filteredSupervisors.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  {searchTerm ? 'No supervisors found matching your search.' : 'No supervisors found.'}
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {filteredSupervisors.map((supervisor) => (
                   <Card key={supervisor.id || supervisor._id || supervisor.username} className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -770,8 +811,7 @@ const UserManagement = () => {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="sm" variant="outline" title="View Details">
-                            <Eye className="h-4 w-4 sm:mr-0" />
-                            <span className="ml-2 sm:hidden">Actions</span>
+                            <Eye className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
@@ -800,8 +840,9 @@ const UserManagement = () => {
                       </DropdownMenu>
                     </div>
                   </Card>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         </TabsContent>
@@ -809,8 +850,13 @@ const UserManagement = () => {
         <TabsContent value="employees" className="mt-6">
           <Card>
             <div className="p-6">
-              <div className="grid gap-4">
-                {employees.map((employee) => {
+              {filteredEmployees.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  {searchTerm ? 'No employees found matching your search.' : 'No employees found.'}
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {filteredEmployees.map((employee) => {
                   const supervisor = users.find(u => u.id === employee.supervisorId);
                   return (
                     <Card key={employee.id || employee._id || employee.username} className="p-4">
@@ -834,8 +880,7 @@ const UserManagement = () => {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="outline" title="View Details">
-                              <Eye className="h-4 w-4 sm:mr-0" />
-                              <span className="ml-2 sm:hidden">Actions</span>
+                              <Eye className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
@@ -876,7 +921,8 @@ const UserManagement = () => {
                     </Card>
                   );
                 })}
-              </div>
+                </div>
+              )}
             </div>
           </Card>
         </TabsContent>
