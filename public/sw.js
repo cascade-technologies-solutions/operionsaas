@@ -4,6 +4,14 @@ const STATIC_CACHE = `operion-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `operion-dynamic-${CACHE_VERSION}`;
 const API_CACHE = `operion-api-${CACHE_VERSION}`;
 
+// Listen for messages from the page to force skip waiting
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('Received SKIP_WAITING message, forcing activation');
+    self.skipWaiting();
+  }
+});
+
 // Static assets to cache on install
 const STATIC_ASSETS = [
   '/',
@@ -48,7 +56,14 @@ self.addEventListener('activate', (event) => {
       }),
       // Take control of all clients immediately
       self.clients.claim()
-    ])
+    ]).then(() => {
+      // Notify all clients that the new service worker is active
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'SW_ACTIVATED', version: CACHE_VERSION });
+        });
+      });
+    })
   );
 });
 

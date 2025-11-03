@@ -22,21 +22,63 @@ class PWAService {
       // Register new service worker
       this.registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
-        updateViaCache: 'none' // Force update
+        updateViaCache: 'none' // Force update - bypasses HTTP cache for service worker file
       });
 
       console.log('Service Worker registered successfully:', this.registration);
+
+      // Force immediate activation if a new worker is installing
+      if (this.registration.installing) {
+        const installingWorker = this.registration.installing;
+        console.log('New service worker installing, forcing skip waiting');
+        installingWorker.postMessage({ type: 'SKIP_WAITING' });
+        
+        installingWorker.addEventListener('statechange', () => {
+          if (installingWorker.state === 'activated') {
+            console.log('New service worker activated, reloading page');
+            window.location.reload();
+          }
+        });
+      }
+
+      // If there's a waiting worker, activate it immediately
+      if (this.registration.waiting) {
+        console.log('Waiting service worker found, forcing activation');
+        this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // Reload after a short delay to allow activation
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+      }
 
       // Handle updates
       this.registration.addEventListener('updatefound', () => {
         const newWorker = this.registration?.installing;
         if (newWorker) {
+          console.log('Update found, new service worker installing');
           newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New content is available, notify user
-              this.notifyUpdateAvailable();
+            if (newWorker.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                // New content is available
+                console.log('New service worker installed, forcing activation');
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                // Reload to activate new worker
+                setTimeout(() => {
+                  window.location.reload();
+                }, 100);
+              } else {
+                // First time installation
+                console.log('Service worker installed for the first time');
+              }
             }
           });
+        }
+      });
+
+      // Listen for service worker activation messages
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SW_ACTIVATED') {
+          console.log('Service worker activated, version:', event.data.version);
         }
       });
 
