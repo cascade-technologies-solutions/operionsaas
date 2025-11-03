@@ -18,6 +18,22 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sans: ['Georgia', 'Times New Roman', 'serif'],
+				serif: ['Georgia', 'Times New Roman', 'serif'],
+			},
+			fontSize: {
+				'xs': ['0.8rem', { lineHeight: '1.2' }],      // 12.8px (10px * 1.25)
+				'sm': ['0.9375rem', { lineHeight: '1.4' }],   // 15px (12px * 1.25)
+				'base': ['1.25rem', { lineHeight: '1.6' }],   // 20px (16px * 1.25)
+				'lg': ['1.5625rem', { lineHeight: '1.6' }],   // 25px (20px * 1.25)
+				'xl': ['1.875rem', { lineHeight: '1.5' }],     // 30px (24px * 1.25)
+				'2xl': ['2.5rem', { lineHeight: '1.3' }],      // 40px (32px * 1.25)
+				'3xl': ['3.125rem', { lineHeight: '1.2' }],    // 50px (40px * 1.25)
+				'4xl': ['3.75rem', { lineHeight: '1.1' }],      // 60px (48px * 1.25)
+				'5xl': ['4.6875rem', { lineHeight: '1.1' }],   // 75px (60px * 1.25)
+				'6xl': ['5.625rem', { lineHeight: '1' }],      // 90px (72px * 1.25)
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

@@ -3,6 +3,9 @@ import App from './App.tsx'
 import './index.css'
 import { pwaService } from './services/pwaService'
 
+// Ensure dark mode is applied by default
+document.documentElement.classList.add('dark')
+
 // Initialize Sentry for error tracking (optional)
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
 if (sentryDsn) {
