@@ -651,8 +651,15 @@ export default function EmployeeDashboard() {
         return;
       }
 
+      // Ensure user ID is available
+      const userId = user?._id || user?.id;
+      if (!userId) {
+        toast.error('User ID not found. Please log in again.');
+        return;
+      }
+
       const attendanceData = await attendanceService.checkIn({
-        employeeId: user?.id || '',
+        employeeId: userId,
         processId: selectedProcess,
         location: location,
         shiftType: selectedShift as 'morning' | 'evening' | 'night',
