@@ -34,7 +34,7 @@ export const useCreateProduct = () => {
   const { factoryId } = useTenant();
   
   return useMutation({
-    mutationFn: (data: any) => productService.createProduct(factoryId!, data),
+    mutationFn: (data: any) => productService.createProduct(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId!) });
       toast.success('Product created successfully');
@@ -114,7 +114,7 @@ export const useCreateProcess = () => {
   const { factoryId } = useTenant();
   
   return useMutation({
-    mutationFn: (data: any) => processService.createProcess(factoryId!, data),
+    mutationFn: (data: any) => processService.createProcess(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId!) });
       toast.success('Process created successfully');
