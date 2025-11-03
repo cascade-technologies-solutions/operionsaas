@@ -65,8 +65,8 @@ const PWARedirect = () => {
 
   useEffect(() => {
     // Check if app is running in standalone mode (PWA)
-    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
-                             (window.navigator as any).standalone === true;
+    const isIOSStandalone = (window.navigator as any).standalone === true;
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || isIOSStandalone;
 
     // For PWA cold starts or when authenticated user is on landing page:
     // Redirect authenticated users to their dashboard
@@ -78,9 +78,24 @@ const PWARedirect = () => {
       if ((isStandaloneMode || location.pathname === '/') && !hasRedirected) {
         const dashboardPath = getDashboardPathForRole(user.role);
         
-        if (dashboardPath && dashboardPath !== '/') {
+        if (dashboardPath && dashboardPath !== '/' && location.pathname === '/') {
           setHasRedirected(true);
-          navigate(dashboardPath, { replace: true });
+          
+          // For iOS, use window.location as fallback if React Router doesn't work immediately
+          // This ensures redirect happens even if React Router is slow to initialize
+          if (isIOSStandalone) {
+            // Try React Router first, but also set a fallback using window.location
+            navigate(dashboardPath, { replace: true });
+            
+            // Fallback for iOS: if still on landing page after short delay, use window.location
+            setTimeout(() => {
+              if (window.location.pathname === '/') {
+                window.location.replace(dashboardPath);
+              }
+            }, 100);
+          } else {
+            navigate(dashboardPath, { replace: true });
+          }
           return;
         }
       }
@@ -92,15 +107,27 @@ const PWARedirect = () => {
 
   // Handle standalone mode check on mount (for cold starts)
   useEffect(() => {
-    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
-                             (window.navigator as any).standalone === true;
+    const isIOSStandalone = (window.navigator as any).standalone === true;
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || isIOSStandalone;
 
     // If in standalone mode and authenticated, redirect immediately after auth initializes
     if (isStandaloneMode && isAuthenticated && user && isInitialized && !hasRedirected) {
       const dashboardPath = getDashboardPathForRole(user.role);
       if (dashboardPath && dashboardPath !== '/' && location.pathname === '/') {
         setHasRedirected(true);
-        navigate(dashboardPath, { replace: true });
+        
+        // For iOS, ensure redirect happens
+        if (isIOSStandalone) {
+          navigate(dashboardPath, { replace: true });
+          // Fallback for iOS
+          setTimeout(() => {
+            if (window.location.pathname === '/') {
+              window.location.replace(dashboardPath);
+            }
+          }, 100);
+        } else {
+          navigate(dashboardPath, { replace: true });
+        }
       }
     }
   }, [isAuthenticated, user, isInitialized, navigate, hasRedirected, location.pathname]);

@@ -44,6 +44,57 @@
 
   <body>
     <div id="root"></div>
+    <!-- iOS PWA Redirect Script - Runs before React to prevent landing page flash -->
+    <script>
+      (function() {
+        // Check if running in iOS standalone mode (PWA)
+        var isIOSStandalone = window.navigator.standalone === true;
+        var isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+        
+        // Only run redirect for standalone mode
+        if (isIOSStandalone || isStandaloneMode) {
+          try {
+            // Check localStorage for auth state (Zustand persist stores state directly)
+            var authStorage = localStorage.getItem('auth-storage');
+            
+            if (authStorage) {
+              var authData = JSON.parse(authStorage);
+              
+              // Zustand persist stores state directly, but may have version wrapper
+              // Handle both formats: direct state or wrapped in 'state' property
+              var state = authData.state || authData;
+              
+              if (state) {
+                var user = state.user;
+                var isAuthenticated = state.isAuthenticated;
+                var accessToken = state.accessToken;
+                
+                // If authenticated with user and token, redirect to dashboard
+                if (isAuthenticated && user && accessToken && user.role) {
+                  var dashboardPaths = {
+                    'super_admin': '/super-admin',
+                    'factory_admin': '/admin',
+                    'supervisor': '/supervisor',
+                    'employee': '/employee'
+                  };
+                  
+                  var dashboardPath = dashboardPaths[user.role];
+                  
+                  // Only redirect if we're on root path and have a valid dashboard path
+                  if (dashboardPath && window.location.pathname === '/') {
+                    // Use replace to prevent back button issues
+                    window.location.replace(window.location.origin + dashboardPath);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Silently fail if localStorage access fails or data is corrupted
+            console.warn('PWA redirect check failed:', e);
+          }
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
