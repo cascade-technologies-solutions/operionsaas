@@ -485,11 +485,11 @@ const Products = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <div>
-            <h1 className="text-3xl font-bold">Factory Management</h1>
-            <p className="text-muted-foreground">Manage products, processes, sizes, and machines</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">Factory Management</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage products, processes, sizes, and machines</p>
           </div>
         </div>
 
@@ -505,12 +505,12 @@ const Products = () => {
             <div className="mb-4">
               <Dialog open={productDialog} onOpenChange={setProductDialog}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[90vh] flex flex-col" aria-describedby="add-product-description">
+                <DialogContent className="max-h-[90vh] flex flex-col w-[95vw] sm:w-full" aria-describedby="add-product-description">
                   <DialogHeader>
                     <DialogTitle>Add New Product</DialogTitle>
                     <DialogDescription id="add-product-description">
@@ -645,53 +645,44 @@ const Products = () => {
             {/* Products List */}
             <div className="space-y-4" key={refreshKey}>
               {products.map((product) => (
-                <div key={`${product._id}-${refreshKey}`} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <Package className="h-5 w-5 text-primary" />
-                      <div>
-                        <div className="font-semibold">{product.name}</div>
-                        <div className="text-sm text-muted-foreground">{product.code}</div>
+                <div key={`${product._id}-${refreshKey}`} className="border rounded-lg p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                    <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+                      <Package className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-base sm:text-lg truncate">{product.name}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground truncate">{product.code}</div>
                         {product.dailyTarget && (
-                          <div className="text-sm text-blue-600">Daily Target: {product.dailyTarget}</div>
+                          <div className="text-xs sm:text-sm text-blue-600 mt-1">Daily Target: {product.dailyTarget}</div>
                         )}
                         {product.processes && product.processes.length > 0 && (
-                          <div className="text-sm text-green-600">
-                            Processes: {product.processes
-                              .sort((a, b) => a.order - b.order)
-                              .map((p, index) => {
-                                const process = processes.find(proc => proc._id === p.processId);
-                                return `${index + 1}. ${process?.name || p.processId}`;
-                              })
-                              .join(', ')}
+                          <div className="text-xs sm:text-sm text-green-600 mt-1 break-words">
+                            <span className="font-medium">Processes: </span>
+                            <span className="break-words">
+                              {product.processes
+                                .sort((a, b) => a.order - b.order)
+                                .map((p, index) => {
+                                  const process = processes.find(proc => proc._id === p.processId);
+                                  return `${index + 1}. ${process?.name || p.processId}`;
+                                })
+                                .join(', ')}
+                            </span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex justify-end sm:justify-start">
                       <Button
                         variant="outline"
                         size="sm"
+                        className="w-full sm:w-auto"
                         onClick={() => {
                           setSelectedProductForView(product);
                           setViewDialog(true);
                         }}
                       >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProductForEdit(product._id);
-                          setDailyTargetForm({ processId: '', target: product.dailyTarget?.toString() || '' });
-                          setProductDialog(false);
-                          setDailyTargetDialog(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit Target
+                        <Eye className="h-4 w-4 mr-1 sm:mr-2" />
+                        <span className="sm:inline">View</span>
                       </Button>
                     </div>
                   </div>
@@ -713,12 +704,12 @@ const Products = () => {
             <div className="mb-4">
               <Dialog open={processDialog} onOpenChange={setProcessDialog}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Process Stages
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md" aria-describedby="add-stages-description">
+                <DialogContent className="max-w-md w-[95vw] sm:w-full" aria-describedby="add-stages-description">
                   <DialogHeader>
                     <DialogTitle>Add Process Stages</DialogTitle>
                     <DialogDescription id="add-stages-description">
@@ -1033,7 +1024,7 @@ const Products = () => {
 
         {/* View Product Dialog */}
         <Dialog open={viewDialog} onOpenChange={setViewDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
             <DialogHeader>
               <DialogTitle>Product Details</DialogTitle>
               <DialogDescription>
@@ -1042,7 +1033,7 @@ const Products = () => {
             </DialogHeader>
             {selectedProductForView && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Product Name</Label>
                     <div className="text-lg font-semibold mt-1">{selectedProductForView.name}</div>
@@ -1078,10 +1069,10 @@ const Products = () => {
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4 border-t">
+                <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 w-full sm:w-auto"
                     onClick={() => {
                       setSelectedProductForEditForm(selectedProductForView);
                       setProductForm({
@@ -1098,7 +1089,7 @@ const Products = () => {
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 w-full sm:w-auto"
                     onClick={() => {
                       setSelectedProductForEdit(selectedProductForView._id || '');
                       setDailyTargetForm({ 
@@ -1120,7 +1111,7 @@ const Products = () => {
 
         {/* Edit Product Dialog */}
         <Dialog open={editProductDialog} onOpenChange={setEditProductDialog}>
-          <DialogContent className="max-h-[90vh] flex flex-col" aria-describedby="edit-product-description">
+          <DialogContent className="max-h-[90vh] flex flex-col w-[95vw] sm:w-full" aria-describedby="edit-product-description">
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>
               <DialogDescription id="edit-product-description">
@@ -1257,7 +1248,7 @@ const Products = () => {
 
         {/* Edit Target Dialog */}
         <Dialog open={dailyTargetDialog} onOpenChange={setDailyTargetDialog}>
-          <DialogContent>
+          <DialogContent className="w-[95vw] sm:w-full">
             <DialogHeader>
               <DialogTitle>Edit Daily Target</DialogTitle>
               <DialogDescription>
@@ -1277,15 +1268,15 @@ const Products = () => {
                   required
                 />
               </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button type="submit" className="flex-1 w-full sm:w-auto">
                   Update Target
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setDailyTargetDialog(false)}
-                  className="flex-1"
+                  className="flex-1 w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
