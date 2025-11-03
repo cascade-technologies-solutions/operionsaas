@@ -123,7 +123,7 @@ export default function EmployeeDashboard() {
     
     // Filter out null/undefined products
     const validProducts = products.filter(p => p && p._id);
-    const product = validProducts.find(p => p._id === selectedProduct);
+    const product = validProducts.find(p => String(p._id) === String(selectedProduct));
     if (!product || !product.processes || !Array.isArray(product.processes)) return [];
     
     // Filter out null/undefined process items from product.processes
@@ -203,6 +203,39 @@ export default function EmployeeDashboard() {
       }
     }
   }, [selectedProduct, processes, products]);
+
+  // Reset selectedProcess if it doesn't exist in filteredProcesses
+  useEffect(() => {
+    if (selectedProcess && filteredProcesses.length > 0) {
+      const processExists = filteredProcesses.some(p => String(p._id) === String(selectedProcess));
+      if (!processExists) {
+        setSelectedProcess('');
+        setProcessQuantityStatus(null);
+      }
+    }
+  }, [selectedProcess, filteredProcesses]);
+
+  // Reset selectedProduct if it doesn't exist in products list
+  useEffect(() => {
+    if (selectedProduct && products.length > 0) {
+      const productExists = products.some(p => String(p._id) === String(selectedProduct));
+      if (!productExists) {
+        setSelectedProduct('');
+        setSelectedProcess('');
+        setProcessQuantityStatus(null);
+      }
+    }
+  }, [selectedProduct, products]);
+
+  // Reset selectedMachine if it doesn't exist in machines list
+  useEffect(() => {
+    if (selectedMachine && machines.length > 0) {
+      const machineExists = machines.some(m => String(m._id) === String(selectedMachine));
+      if (!machineExists) {
+        setSelectedMachine('');
+      }
+    }
+  }, [selectedMachine, machines]);
 
   // Location tracking removed for now - will be implemented later
 
