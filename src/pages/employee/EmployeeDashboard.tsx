@@ -1726,7 +1726,7 @@ export default function EmployeeDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-red-700">Selected machine ID: {selectedMachine}</p>
-              <p className="text-red-700">Available machine IDs: {machines.map(m => m._id).join(', ')}</p>
+              <p className="text-red-700">Available machine IDs: {machines.map(m => typeof m._id === 'string' ? m._id : String(m._id)).join(', ')}</p>
               <p className="text-red-700">Please reselect a machine from the dropdown.</p>
             </CardContent>
           </Card>
@@ -1803,14 +1803,17 @@ export default function EmployeeDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="product-select">Select Product</Label>
-                    <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                    <Select 
+                      value={typeof selectedProduct === 'string' ? selectedProduct : (selectedProduct ? String(selectedProduct) : '')} 
+                      onValueChange={(value) => setSelectedProduct(value)}
+                    >
                       <SelectTrigger id="product-select" className="h-12 sm:h-10">
                         <SelectValue placeholder="Choose product" />
                       </SelectTrigger>
                       <SelectContent>
                         {products.length > 0 ? (
                           products.map((product) => (
-                            <SelectItem key={product._id} value={product._id}>
+                            <SelectItem key={product._id} value={typeof product._id === 'string' ? product._id : String(product._id)}>
                               {product.name} - T-{product.dailyTarget || 0}
                             </SelectItem>
                           ))
@@ -1826,8 +1829,8 @@ export default function EmployeeDashboard() {
                   <div className="space-y-2">
                     <Label htmlFor="process-select">Select Process</Label>
                     <Select 
-                      value={selectedProcess} 
-                      onValueChange={setSelectedProcess}
+                      value={typeof selectedProcess === 'string' ? selectedProcess : (selectedProcess ? String(selectedProcess) : '')} 
+                      onValueChange={(value) => setSelectedProcess(value)}
                       disabled={!selectedProduct}
                     >
                       <SelectTrigger id="process-select" className="h-12 sm:h-10">
@@ -1836,7 +1839,7 @@ export default function EmployeeDashboard() {
                       <SelectContent>
                         {filteredProcesses.length > 0 ? (
                           filteredProcesses.map((process) => (
-                            <SelectItem key={process._id} value={process._id}>
+                            <SelectItem key={process._id} value={typeof process._id === 'string' ? process._id : String(process._id)}>
                               {process.name}
                             </SelectItem>
                           ))
@@ -1855,14 +1858,17 @@ export default function EmployeeDashboard() {
 
                   <div className="space-y-2">
                     <Label htmlFor="machine-select">Select Machine</Label>
-                    <Select value={selectedMachine} onValueChange={setSelectedMachine}>
+                    <Select 
+                      value={typeof selectedMachine === 'string' ? selectedMachine : (selectedMachine ? String(selectedMachine) : '')} 
+                      onValueChange={(value) => setSelectedMachine(value)}
+                    >
                       <SelectTrigger id="machine-select" className="h-12 sm:h-10">
                         <SelectValue placeholder="Choose machine" />
                       </SelectTrigger>
                       <SelectContent>
                         {machines.length > 0 ? (
                           machines.map((machine) => (
-                            <SelectItem key={machine._id} value={machine._id}>
+                            <SelectItem key={machine._id} value={typeof machine._id === 'string' ? machine._id : String(machine._id)}>
                               {machine.name}
                             </SelectItem>
                           ))

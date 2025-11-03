@@ -1,38 +1,13 @@
 
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { InstallPWAButton } from '@/components/InstallPWAButton';
 import { Factory, Package, Users, BarChart3, Shield, Globe } from 'lucide-react';
-import { useAuthStore } from '@/stores/authStore';
-import { getDashboardPathForRole } from '@/services/manifestService';
+import { PWALandingRedirect } from '@/components/PWALandingRedirect';
 
 const Landing = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user, isInitialized } = useAuthStore();
-
-  // Redirect authenticated users to their dashboard immediately
-  // This is critical for iOS PWA where inline script might not work
-  useEffect(() => {
-    if (isInitialized && isAuthenticated && user && user.role) {
-      const dashboardPath = getDashboardPathForRole(user.role);
-      if (dashboardPath && dashboardPath !== '/') {
-        // Check if iOS standalone mode for immediate redirect
-        const isIOSStandalone = (window.navigator as any).standalone === true;
-        const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || isIOSStandalone;
-        
-        // For iOS or standalone mode, use window.location for immediate redirect
-        // React Router navigate might be too slow on iOS
-        if (isIOSStandalone || isStandaloneMode) {
-          window.location.replace(dashboardPath);
-        } else {
-          // For regular browsers, use React Router
-          navigate(dashboardPath, { replace: true });
-        }
-      }
-    }
-  }, [isAuthenticated, user, isInitialized, navigate]);
 
   const features = [
     {
@@ -68,7 +43,8 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <PWALandingRedirect>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-primary/5 -z-10" />
@@ -189,7 +165,8 @@ const Landing = () => {
           <p>&copy; 2025 Factory Management System. All rights reserved.</p>
         </div>
       </footer>
-    </div>
+      </div>
+    </PWALandingRedirect>
   );
 };
 
