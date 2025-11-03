@@ -20,12 +20,10 @@ export const NetworkStatus: React.FC<NetworkStatusProps> = ({ showDetails = fals
     // Check server status
     const checkServerStatus = async () => {
       try {
-        let backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        // Upgrade HTTP to HTTPS if page is loaded over HTTPS
-        if (typeof window !== 'undefined' && window.location.protocol === 'https:' && backendUrl.startsWith('http://')) {
-          backendUrl = backendUrl.replace('http://', 'https://');
-        }
-        const healthUrl = backendUrl.replace('/api', '') + '/health';
+        // Use getBaseUrl helper from API client to properly construct health check URL
+        const { getBaseUrl } = await import('@/services/api/client');
+        const baseUrl = getBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
+        const healthUrl = `${baseUrl}/health`;
         const response = await fetch(healthUrl, {
           method: 'GET',
           signal: AbortSignal.timeout(5000)

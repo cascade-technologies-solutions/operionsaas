@@ -115,7 +115,9 @@ class ApiClient {
     // Test server connection every 30 seconds
     this.connectionTestInterval = setInterval(async () => {
       try {
-        const response = await fetch(`${this.baseURL.replace('/api', '')}/health`, {
+        // Use getBaseUrl() helper to properly construct health check URL
+        const baseUrl = getBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
+        const response = await fetch(`${baseUrl}/health`, {
           method: 'GET',
           signal: AbortSignal.timeout(5000)
         });
