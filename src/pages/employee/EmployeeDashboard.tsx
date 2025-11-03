@@ -284,9 +284,10 @@ export default function EmployeeDashboard() {
         
         // Load today's attendance data for summary display
         try {
-          const userId = user.id || user._id;
+          // Use _id (ObjectId) consistently - it matches what the backend expects
+          const userId = user._id || user.id;
           if (userId) {
-            const attendanceResponse = await attendanceService.getTodayAttendance(userId);
+            const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
             const attendanceData = attendanceResponse.data;
             if (attendanceData && typeof attendanceData === 'object' && '_id' in attendanceData) {
               setAttendance(attendanceData);
@@ -307,7 +308,9 @@ export default function EmployeeDashboard() {
             console.error('User ID not available for loading work entries');
             setAllWorkEntries([]);
           } else {
-            const workResponse = await workEntryService.getWorkEntriesByEmployee(userId, { today: 'true' });
+            // Use _id (ObjectId) consistently for API calls
+            const userIdForWorkEntries = user._id || user.id;
+            const workResponse = await workEntryService.getWorkEntriesByEmployee(userIdForWorkEntries?.toString() || userId, { today: 'true' });
             console.debug('Work entries response:', workResponse);
             
             // Handle different response structures
