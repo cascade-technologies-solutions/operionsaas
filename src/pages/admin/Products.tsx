@@ -768,12 +768,12 @@ const Products = () => {
               </Dialog>
             </div>
 
-            {/* All Process Stages List */}
+            {/* Processes List */}
             <div className="mt-6" key={`processes-${refreshKey}`}>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4">All Process Stages</h3>
+              <h3 className="text-lg sm:text-xl font-semibold mb-4">Processes</h3>
               {processes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm sm:text-base">
-                  No process stages found. Create your first process stage above.
+                  No processes found. Create your first process above.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
