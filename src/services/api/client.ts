@@ -539,7 +539,10 @@ class ApiClient {
   // WebSocket connection
   createWebSocket(userId: string): WebSocket {
     const token = this.getAccessToken();
-    return new WebSocket(`${this.wsURL}/ws?token=${token}`);
+    // VITE_WS_URL already includes /ws path (e.g., wss://api.cascade-erp.in/ws)
+    // So we just append the query string, not another /ws
+    const separator = this.wsURL.includes('?') ? '&' : '?';
+    return new WebSocket(`${this.wsURL}${separator}token=${token}`);
   }
 
   // Cleanup method
