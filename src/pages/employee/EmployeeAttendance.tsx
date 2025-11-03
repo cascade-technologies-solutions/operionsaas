@@ -28,6 +28,58 @@ import { Attendance, WorkEntry, Machine } from '@/types';
 import { formatDate, formatTime, formatHours, calculateHours } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 
+/**
+ * Safely extracts a string value from a potentially nested object structure.
+ * Handles cases where the value might be:
+ * - null/undefined
+ * - a string
+ * - an object with a `name` property (which might also be a string or object)
+ * - an object with `_id` and `name` properties
+ */
+const getSafeStringValue = (value: any): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  
+  // If it's already a string, return it
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  // If it's an object, try to extract the name property
+  if (typeof value === 'object') {
+    // If the object has a `name` property
+    if ('name' in value && value.name !== null && value.name !== undefined) {
+      const nameValue = value.name;
+      // If name is a string, return it
+      if (typeof nameValue === 'string') {
+        return nameValue;
+      }
+      // If name is also an object, recursively extract
+      if (typeof nameValue === 'object' && nameValue !== null) {
+        return getSafeStringValue(nameValue);
+      }
+    }
+    // Fallback: try to get _id or convert to string
+    if ('_id' in value && value._id !== null && value._id !== undefined) {
+      return String(value._id);
+    }
+    // Last resort: convert to string (but avoid [object Object])
+    try {
+      const stringValue = String(value);
+      if (stringValue === '[object Object]') {
+        return '';
+      }
+      return stringValue;
+    } catch {
+      return '';
+    }
+  }
+  
+  // For any other type, convert to string
+  return String(value);
+};
+
 export default function EmployeeAttendance() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -242,11 +294,25 @@ export default function EmployeeAttendance() {
     };
 
 
-    // Return entries with mapped names
+    // Return entries with mapped names and sanitized object properties
     return filtered.map(entry => {
       const machineId = entry.machineCode || entry.machineId;
+      // Safely extract processId and productId as strings if they're objects
+      const safeProcessId = typeof entry.processId === 'object' && entry.processId !== null
+        ? getSafeStringValue(entry.processId)
+        : (entry.processId || '');
+      const safeProductId = typeof entry.productId === 'object' && entry.productId !== null
+        ? getSafeStringValue(entry.productId)
+        : (entry.productId || '');
+      const safeSizeCode = typeof entry.sizeCode === 'object' && entry.sizeCode !== null
+        ? getSafeStringValue(entry.sizeCode)
+        : (entry.sizeCode || 'N/A');
+      
       return {
         ...entry,
+        processId: safeProcessId,
+        productId: safeProductId,
+        sizeCode: safeSizeCode,
         machineName: machineId ? getMachineName(machineId) : 'Unknown',
         sizeName: 'N/A'
       };
