@@ -312,9 +312,8 @@ class ApiClient {
               });
               toast.error('CORS configuration error: Backend must allow requests from this domain.');
             }
-          
-          // Don't retry on CORS errors - they are configuration issues that won't resolve
-          if (isLikelyCorsError) {
+            
+            // Don't retry on CORS errors - they are configuration issues that won't resolve
             throw new ApiError(
               `CORS error: Backend must allow requests from ${typeof window !== 'undefined' ? window.location.origin : 'frontend origin'}. ` +
               `Please ensure CORS_ORIGINS includes your frontend domain.`,
@@ -489,10 +488,8 @@ class ApiClient {
         }
         
         return data;
-      }
-      catch (error) {
-        const err = error as Error;
-        lastError = err;
+      } catch (error) {
+        lastError = error as Error;
         
         // Don't retry on certain errors
         if (error instanceof Error) {
