@@ -39,12 +39,31 @@ if (sentryDsn) {
     })
 }
 
-// Register service worker for PWA
+// TEMPORARY FIX: Unregister all service workers to fix CORS issues
+// Service workers interfere with CORS preflight requests even when bypassing
 window.addEventListener('load', async () => {
   try {
-    await pwaService.registerServiceWorker();
+    // First, unregister ALL existing service workers
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) {
+        await registration.unregister();
+        console.log('Unregistered service worker to fix CORS');
+      }
+      
+      // Clear all caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        console.log('Cleared all caches');
+      }
+    }
+    
+    // Temporarily disabled: Don't register service worker until CORS issue is fully resolved
+    // await pwaService.registerServiceWorker();
+    console.log('Service worker registration temporarily disabled to fix CORS');
   } catch (error) {
-    // PWA service worker registration failed
+    console.error('Service worker cleanup failed:', error);
   }
 });
 
