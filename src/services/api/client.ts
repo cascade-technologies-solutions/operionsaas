@@ -279,7 +279,7 @@ class ApiClient {
         }
 
 
-        let response: Response;
+        let response: Response | null = null;
         try {
           response = await fetch(url, {
             ...requestConfig,
@@ -333,15 +333,17 @@ class ApiClient {
         }
 
         // Handle token expiration
-        if (response.status === 401 && !config?.skipAuth) {
+        if (response && response.status === 401 && !config?.skipAuth) {
           try {
             await this.refreshToken();
             requestConfig.headers = this.getHeaders(config);
-            response = await fetch(url, {
+            // Re-fetch with new token
+            const refreshedResponse = await fetch(url, {
               ...requestConfig,
               credentials: 'include', // Include cookies
               signal: AbortSignal.timeout(20000)
             });
+            response = refreshedResponse;
           } catch (refreshError) {
             // Only log and logout if it's a critical auth error
             // Don't log on every retry attempt - only on final attempt or critical errors
@@ -354,6 +356,12 @@ class ApiClient {
             }
             throw refreshError;
           }
+        }
+
+        // Ensure response exists before proceeding (safety check)
+        // This handles edge cases where response might not be set
+        if (!response) {
+          throw new Error('No response received from server');
         }
 
         // Handle rate limiting
@@ -393,10 +401,15 @@ class ApiClient {
 
         // Handle response errors
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({
-            error: response.statusText || 'Unknown error',
-            status: response.status
-          }));
+          let errorData: any;
+          try {
+            errorData = await response.json();
+          } catch (jsonError) {
+            errorData = {
+              error: response.statusText || 'Unknown error',
+              status: response.status
+            };
+          }
           
           // Only log errors on final attempt or non-retryable errors to prevent repeated logging
           const isLastAttempt = attempt === maxRetries;
@@ -477,7 +490,8 @@ class ApiClient {
         
         return data;
       } catch (error) {
-        lastError = error as Error;
+        const err = error as Error;
+        lastError = err;
         
         // Don't retry on certain errors
         if (error instanceof Error) {
@@ -546,14 +560,16 @@ class ApiClient {
 
         // If this is the last attempt, throw the error
         if (attempt === maxRetries) {
-          if (error instanceof Error) {
-            if (error.message === 'Failed to fetch') {
+          if (lastError instanceof Error) {
+            if (lastError.message === 'Failed to fetch') {
               toast.error('Network error. The server may be down or unreachable. Please try again later.');
             } else {
-              toast.error(error.message || 'Request failed');
+              toast.error(lastError.message || 'Request failed');
             }
+            throw lastError;
+          } else {
+            throw lastError || new Error('Request failed');
           }
-          throw error;
         }
 
         // Wait before retrying with exponential backoff
