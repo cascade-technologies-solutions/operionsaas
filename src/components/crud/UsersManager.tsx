@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUsers, useCreateUser, useUpdateUser } from '@/hooks/useApi';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useApi';
 import { UserForm } from './UserForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { User, UserRole } from '@/types';
@@ -23,6 +23,7 @@ export const UsersManager = () => {
   const { data: users, isLoading } = useUsers(roleFilter === 'all' ? undefined : roleFilter);
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
 
   const filteredUsers = users?.filter(user =>
     (user.profile.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -252,8 +253,14 @@ export const UsersManager = () => {
       <DeleteConfirmDialog
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
-        onConfirm={async () => {/* handle delete */}}
-        isLoading={false}
+        onConfirm={async () => {
+          if (selectedUser) {
+            await deleteUser.mutateAsync(selectedUser._id || selectedUser.id);
+            setIsDeleteOpen(false);
+            setSelectedUser(null);
+          }
+        }}
+        isLoading={deleteUser.isPending}
         title="Delete User"
         description={`Are you sure you want to delete "${selectedUser?.profile.firstName} ${selectedUser?.profile.lastName}"? This action cannot be undone.`}
       />

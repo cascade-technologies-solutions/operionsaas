@@ -10,6 +10,7 @@ import { UserForm } from '@/components/crud/UserForm';
 import { DeleteConfirmDialog } from '@/components/crud/DeleteConfirmDialog';
 import { UserDetails } from '@/components/crud/UserDetails';
 import { userService } from '@/services/api/user.service';
+import { useDeleteUser } from '@/hooks/useApi';
 import { User } from '@/types';
 import { 
   Users, 
@@ -32,7 +33,6 @@ export default function EmployeeManagement() {
   const [employees, setEmployees] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [resetLoadingId, setResetLoadingId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -149,18 +149,15 @@ export default function EmployeeManagement() {
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
     
-    setDeleteLoading(true);
     try {
-      await userService.deleteUser(selectedUser._id!);
-      toast.success('Employee deleted successfully');
+      await deleteUser.mutateAsync(selectedUser._id!);
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
+      // Refresh the employees list after successful deletion
       loadEmployees();
     } catch (error) {
       console.error('Failed to delete employee:', error);
-      toast.error('Failed to delete employee');
-    } finally {
-      setDeleteLoading(false);
+      // Error toast is handled by the hook
     }
   };
 
@@ -304,7 +301,7 @@ export default function EmployeeManagement() {
                           setSelectedUser(employee);
                           setIsEditDialogOpen(true);
                         }}
-                        disabled={actionLoading || deleteLoading}
+                        disabled={actionLoading || deleteUser.isPending}
                         className="h-9 w-9 p-0"
                         title="Edit Employee"
                       >
@@ -321,11 +318,11 @@ export default function EmployeeManagement() {
                           setSelectedUser(employee);
                           setIsDeleteDialogOpen(true);
                         }}
-                        disabled={deleteLoading || actionLoading}
+                        disabled={deleteUser.isPending || actionLoading}
                         className="h-9 w-9 p-0 text-red-600 hover:text-red-700"
                         title="Delete Employee"
                       >
-                        {deleteLoading ? (
+                        {deleteUser.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Trash2 className="h-4 w-4" />
@@ -386,7 +383,7 @@ export default function EmployeeManagement() {
           open={isDeleteDialogOpen}
           onOpenChange={setIsDeleteDialogOpen}
           onConfirm={handleDeleteUser}
-          isLoading={deleteLoading}
+          isLoading={deleteUser.isPending}
           title="Delete Employee"
           description={`Are you sure you want to delete ${selectedUser?.profile.firstName} ${selectedUser?.profile.lastName}? This action cannot be undone.`}
         />

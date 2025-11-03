@@ -60,10 +60,13 @@ export const useUpdateProduct = () => {
       toast.error('Failed to update product');
     },
   });
+
 };
+
 
 export const useDeleteProduct = () => {
   const queryClient = useQueryClient();
+
   const { factoryId } = useTenant();
   
   return useMutation({
@@ -207,6 +210,23 @@ export const useUpdateUser = () => {
     },
     onError: () => {
       toast.error('Failed to update user');
+    },
+  });
+};
+
+export const useDeleteUser = () => {
+  const queryClient = useQueryClient();
+  const { factoryId } = useTenant();
+  
+  return useMutation({
+    mutationFn: (id: string) => userService.deleteUser(id),
+    onSuccess: () => {
+      // Invalidate all user queries for this factory to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['users', factoryId!] });
+      toast.success('User deleted successfully');
+    },
+    onError: () => {
+      toast.error('Failed to delete user');
     },
   });
 };
