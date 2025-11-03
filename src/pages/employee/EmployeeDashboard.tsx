@@ -282,17 +282,71 @@ export default function EmployeeDashboard() {
           setSelectedShift('Morning');
         }
         
-        // Don't load attendance automatically - only when user clicks Check In
-        // Attendance will be loaded when user checks in
+        // Load today's attendance data for summary display
+        try {
+          const userId = user.id || user._id;
+          if (userId) {
+            const attendanceResponse = await attendanceService.getTodayAttendance(userId);
+            const attendanceData = attendanceResponse.data;
+            if (attendanceData && typeof attendanceData === 'object' && '_id' in attendanceData) {
+              setAttendance(attendanceData);
+            } else {
+              setAttendance(null);
+            }
+          }
+        } catch (error) {
+          // Failed to load attendance - this is okay if employee hasn't checked in yet
+          console.debug('No attendance record found for today (this is normal if not checked in)');
+          setAttendance(null);
+        }
         
         // Load work entries
         try {
-          const workResponse = await workEntryService.getWorkEntriesByEmployee(user.id || user._id, { today: 'true' });
-          const allWorkEntries = 'data' in workResponse ? workResponse.data : workResponse;
-          const workEntriesArray = Array.isArray(allWorkEntries) ? allWorkEntries : [];
-          setAllWorkEntries(workEntriesArray);
+          const userId = user.id || user._id;
+          if (!userId) {
+            console.error('User ID not available for loading work entries');
+            setAllWorkEntries([]);
+          } else {
+            const workResponse = await workEntryService.getWorkEntriesByEmployee(userId, { today: 'true' });
+            console.debug('Work entries response:', workResponse);
+            
+            // Handle different response structures
+            let workEntriesArray: WorkEntry[] = [];
+            
+            if ('data' in workResponse) {
+              const responseData = workResponse.data;
+              if (Array.isArray(responseData)) {
+                workEntriesArray = responseData;
+              } else if (responseData && typeof responseData === 'object') {
+                // Backend returns { workEntries: [...], pagination: {...} } or nested data
+                const dataObj = responseData as any;
+                if ('workEntries' in dataObj && Array.isArray(dataObj.workEntries)) {
+                  workEntriesArray = dataObj.workEntries;
+                } else if ('data' in dataObj) {
+                  // Nested data structure
+                  const nestedData = dataObj.data;
+                  if (Array.isArray(nestedData?.workEntries)) {
+                    workEntriesArray = nestedData.workEntries;
+                  } else if (Array.isArray(nestedData)) {
+                    workEntriesArray = nestedData;
+                  }
+                }
+              }
+            } else if (Array.isArray(workResponse)) {
+              workEntriesArray = workResponse;
+            } else if (workResponse && typeof workResponse === 'object') {
+              const responseObj = workResponse as any;
+              if ('workEntries' in responseObj && Array.isArray(responseObj.workEntries)) {
+                workEntriesArray = responseObj.workEntries;
+              }
+            }
+            
+            console.debug(`Loaded ${workEntriesArray.length} work entries for today`);
+            setAllWorkEntries(workEntriesArray);
+          }
         } catch (error) {
           // Failed to load work entries
+          console.error('Failed to load work entries:', error);
           setAllWorkEntries([]);
         }
         
@@ -475,13 +529,17 @@ export default function EmployeeDashboard() {
   const calculateTotalWorkHours = useMemo(() => {
     let totalHours = 0;
     const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     
     allWorkEntries.forEach(entry => {
+      // Use startTime if available, otherwise fallback to createdAt
+      const entryDate = entry.startTime 
+        ? new Date(entry.startTime) 
+        : (entry.createdAt ? new Date(entry.createdAt) : null);
+      
       // Only count entries from today
-      const entryDate = new Date(entry.startTime || entry.createdAt);
-      if (entryDate >= todayStart && entryDate <= todayEnd) {
+      if (entryDate && entryDate >= todayStart && entryDate <= todayEnd) {
         if (entry.startTime && entry.endTime) {
           const startTime = new Date(entry.startTime);
           const endTime = entry.endTime ? new Date(entry.endTime) : new Date();
@@ -500,12 +558,25 @@ export default function EmployeeDashboard() {
     let totalAchieved = 0;
     let totalRejected = 0;
     
+    // Filter to today's entries only
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    
     allWorkEntries.forEach(entry => {
-      if (entry.achieved) {
-        totalAchieved += entry.achieved;
-      }
-      if (entry.rejected) {
-        totalRejected += entry.rejected;
+      // Use startTime if available, otherwise fallback to createdAt
+      const entryDate = entry.startTime 
+        ? new Date(entry.startTime) 
+        : (entry.createdAt ? new Date(entry.createdAt) : null);
+      
+      // Only count entries from today
+      if (entryDate && entryDate >= todayStart && entryDate <= todayEnd) {
+        if (entry.achieved) {
+          totalAchieved += entry.achieved;
+        }
+        if (entry.rejected) {
+          totalRejected += entry.rejected;
+        }
       }
     });
 
@@ -518,12 +589,21 @@ export default function EmployeeDashboard() {
 
   // Get unique machines from today's work entries
   const getTodayWorkSummary = useMemo(() => {
+    // Use consistent date filtering with backend - match startTime (preferred) or createdAt
     const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     
+    // Filter entries by startTime (preferred) or createdAt (fallback) to match backend logic
     const todayEntries = allWorkEntries.filter(entry => {
-      const entryDate = new Date(entry.startTime || entry.createdAt);
+      // Use startTime if available, otherwise fallback to createdAt
+      const entryDate = entry.startTime 
+        ? new Date(entry.startTime) 
+        : (entry.createdAt ? new Date(entry.createdAt) : null);
+      
+      if (!entryDate) return false;
+      
+      // Compare dates (ignore time for day comparison)
       return entryDate >= todayStart && entryDate <= todayEnd;
     });
 
@@ -1257,52 +1337,56 @@ export default function EmployeeDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {attendance ? (
+            {attendance || getTodayWorkSummary.totalEntries > 0 ? (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Status:</span>
-                  {(() => {
-                    return (
-                      <Badge 
-                        variant={attendance.status === 'present' ? 'default' : 
-                               attendance.status === 'absent' ? 'destructive' : 
-                               attendance.status === 'half-day' ? 'secondary' : 'outline'}
-                        className={attendance.status === 'present' ? 'bg-green-100 text-green-800' : 
-                                 attendance.status === 'absent' ? 'bg-red-100 text-red-800' : 
-                                 attendance.status === 'half-day' ? 'bg-yellow-100 text-yellow-800' : ''}
-                      >
-                        {attendance.status === 'present' ? 'Present' : 
-                         attendance.status === 'absent' ? 'Absent' : 
-                         attendance.status === 'half-day' ? 'Half Day' : 
-                         attendance.status || 'Unknown'}
-                      </Badge>
-                    );
-                  })()}
-                </div>
-                                 <div className="flex items-center justify-between">
-                   <span className="font-medium">Check-in Time:</span>
-                   <span className="text-sm text-muted-foreground">
-                     {attendance.checkIn?.time ? 
-                       new Date(attendance.checkIn.time).toLocaleString('en-US', {
-                         hour: 'numeric',
-                         minute: '2-digit',
-                         hour12: true
-                       }) : 
-                       'Time not available'}
-                   </span>
-                 </div>
-                 {attendance.checkOut?.time && (
-                   <div className="flex items-center justify-between">
-                     <span className="font-medium">Check-out Time:</span>
-                     <span className="text-sm text-muted-foreground">
-                       {new Date(attendance.checkOut.time).toLocaleString('en-US', {
-                         hour: 'numeric',
-                         minute: '2-digit',
-                         hour12: true
-                       })}
-                     </span>
-                   </div>
-                 )}
+                {attendance && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">Status:</span>
+                      {(() => {
+                        return (
+                          <Badge 
+                            variant={attendance.status === 'present' ? 'default' : 
+                                   attendance.status === 'absent' ? 'destructive' : 
+                                   attendance.status === 'half-day' ? 'secondary' : 'outline'}
+                            className={attendance.status === 'present' ? 'bg-green-100 text-green-800' : 
+                                     attendance.status === 'absent' ? 'bg-red-100 text-red-800' : 
+                                     attendance.status === 'half-day' ? 'bg-yellow-100 text-yellow-800' : ''}
+                          >
+                            {attendance.status === 'present' ? 'Present' : 
+                             attendance.status === 'absent' ? 'Absent' : 
+                             attendance.status === 'half-day' ? 'Half Day' : 
+                             attendance.status || 'Unknown'}
+                          </Badge>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">Check-in Time:</span>
+                      <span className="text-sm text-muted-foreground">
+                        {attendance.checkIn?.time ? 
+                          new Date(attendance.checkIn.time).toLocaleString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          }) : 
+                          'Time not available'}
+                      </span>
+                    </div>
+                    {attendance.checkOut?.time && (
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Check-out Time:</span>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(attendance.checkOut.time).toLocaleString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Total Work Hours:</span>
                   <span className="text-sm text-muted-foreground">

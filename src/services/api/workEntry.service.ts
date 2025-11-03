@@ -55,19 +55,42 @@ export const workEntryService = {
     const url = `/work-entries/employee/${employeeId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     const response = await apiClient.get(url);
     
-    // The backend returns { data: { workEntries: [...], pagination: {...} } }
+    // The backend returns { success: true, data: { workEntries: [...], pagination: {...} } }
+    // or { success: true, data: [...] } in some cases
     const responseData = response.data || response;
     
-    if (responseData.data && responseData.data.workEntries) {
-      return { data: responseData.data.workEntries };
-    } else if (responseData.workEntries) {
-      return { data: responseData.workEntries };
-    } else if (Array.isArray(responseData)) {
-      return { data: responseData };
-    } else {
-      console.error('❌ Unexpected response format:', responseData);
-      return { data: [] };
+    // Handle nested response structure: response.data.data.workEntries
+    if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+      const nestedData = responseData.data;
+      if (nestedData && typeof nestedData === 'object') {
+        if ('workEntries' in nestedData && Array.isArray(nestedData.workEntries)) {
+          return { data: nestedData.workEntries };
+        } else if (Array.isArray(nestedData)) {
+          return { data: nestedData };
+        }
+      }
     }
+    
+    // Handle direct workEntries property
+    if (responseData && typeof responseData === 'object' && 'workEntries' in responseData) {
+      const workEntries = (responseData as any).workEntries;
+      if (Array.isArray(workEntries)) {
+        return { data: workEntries };
+      }
+    }
+    
+    // Handle direct array response
+    if (Array.isArray(responseData)) {
+      return { data: responseData };
+    }
+    
+    // Log unexpected format but return empty array to prevent crashes
+    console.error('❌ Unexpected response format for getWorkEntriesByEmployee:', {
+      responseData,
+      responseType: typeof responseData,
+      hasData: responseData && typeof responseData === 'object' && 'data' in responseData
+    });
+    return { data: [] };
   },
 
   async getWorkHistoryByEmployee(employeeId: string): Promise<{ data: WorkEntry[] }> {
