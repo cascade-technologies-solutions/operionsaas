@@ -26,6 +26,8 @@ import { Product, Process } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { SortableProcessList } from '@/components/SortableProcessList';
+import { DeleteConfirmDialog } from '@/components/crud/DeleteConfirmDialog';
+import { useDeleteProduct, useDeleteProcess } from '@/hooks/useApi';
 
 interface Machine {
   _id: string;
@@ -53,6 +55,10 @@ const Products = () => {
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
+  // Delete hooks
+  const deleteProduct = useDeleteProduct();
+  const deleteProcess = useDeleteProcess();
+  
   // Dialog states
   const [productDialog, setProductDialog] = useState(false);
   const [processDialog, setProcessDialog] = useState(false);
@@ -77,6 +83,12 @@ const Products = () => {
   });
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Delete dialog states
+  const [isDeleteProductOpen, setIsDeleteProductOpen] = useState(false);
+  const [isDeleteProcessOpen, setIsDeleteProcessOpen] = useState(false);
+  const [selectedProductForDelete, setSelectedProductForDelete] = useState<Product | null>(null);
+  const [selectedProcessForDelete, setSelectedProcessForDelete] = useState<Process | null>(null);
 
   // Employee work entry states
   const [selectedProcess, setSelectedProcess] = useState('');
@@ -342,6 +354,43 @@ const Products = () => {
         description: error.message || 'Failed to update product target',
         variant: 'destructive',
       });
+    }
+  };
+
+  // Delete handlers
+  const handleDeleteProduct = (product: Product) => {
+    setSelectedProductForDelete(product);
+    setIsDeleteProductOpen(true);
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (selectedProductForDelete && selectedProductForDelete._id) {
+      try {
+        await deleteProduct.mutateAsync(selectedProductForDelete._id);
+        setIsDeleteProductOpen(false);
+        setSelectedProductForDelete(null);
+        loadData(true);
+      } catch (error: any) {
+        // Error handled by the hook
+      }
+    }
+  };
+
+  const handleDeleteProcess = (process: Process) => {
+    setSelectedProcessForDelete(process);
+    setIsDeleteProcessOpen(true);
+  };
+
+  const handleConfirmDeleteProcess = async () => {
+    if (selectedProcessForDelete && selectedProcessForDelete._id) {
+      try {
+        await deleteProcess.mutateAsync(selectedProcessForDelete._id);
+        setIsDeleteProcessOpen(false);
+        setSelectedProcessForDelete(null);
+        loadData(true);
+      } catch (error: any) {
+        // Error handled by the hook
+      }
     }
   };
 
@@ -630,7 +679,7 @@ const Products = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex justify-end sm:justify-start">
+                    <div className="flex justify-end sm:justify-start gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -642,6 +691,15 @@ const Products = () => {
                       >
                         <Eye className="h-4 w-4 mr-1 sm:mr-2" />
                         <span className="sm:inline">View</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteProduct(product)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+                        <span className="sm:inline">Delete</span>
                       </Button>
                     </div>
                   </div>
@@ -746,6 +804,15 @@ const Products = () => {
                             <div className="font-medium">{process.name}</div>
                           </div>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteProcess(process)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+                          <span className="sm:inline">Delete</span>
+                        </Button>
                       </div>
                     ))}
                 </div>
@@ -1138,6 +1205,26 @@ const Products = () => {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Product Confirmation Dialog */}
+        <DeleteConfirmDialog
+          open={isDeleteProductOpen}
+          onOpenChange={setIsDeleteProductOpen}
+          onConfirm={handleConfirmDeleteProduct}
+          isLoading={deleteProduct.isPending}
+          title="Delete Product"
+          description={`Are you sure you want to delete "${selectedProductForDelete?.name}"? This action cannot be undone.`}
+        />
+
+        {/* Delete Process Confirmation Dialog */}
+        <DeleteConfirmDialog
+          open={isDeleteProcessOpen}
+          onOpenChange={setIsDeleteProcessOpen}
+          onConfirm={handleConfirmDeleteProcess}
+          isLoading={deleteProcess.isPending}
+          title="Delete Process"
+          description={`Are you sure you want to delete "${selectedProcessForDelete?.name}"? This action cannot be undone.`}
+        />
       </div>
     </Layout>
   );
