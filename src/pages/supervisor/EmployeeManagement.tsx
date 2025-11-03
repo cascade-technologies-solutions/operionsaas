@@ -40,6 +40,9 @@ export default function EmployeeManagement() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
+  // Initialize deleteUser hook
+  const deleteUser = useDeleteUser();
+
   useEffect(() => {
     loadEmployees();
   }, []);
