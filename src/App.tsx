@@ -8,7 +8,8 @@ import { useAuthStore } from "@/stores/authStore";
 import EnhancedMobileNav from './components/layout/EnhancedMobileNav';
 import { TenantProvider } from './contexts/TenantContext';
 import { queryClient } from './lib/queryClient';
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { updateManifestForRole, getDashboardPathForRole } from './services/manifestService';
 
 // Pages
 import Landing from "./pages/Landing";
@@ -60,44 +61,56 @@ const PWARedirect = () => {
   const { isAuthenticated, user, isInitialized } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
     // Check if app is running in standalone mode (PWA)
     const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
                              (window.navigator as any).standalone === true;
 
-    // Only redirect if:
-    // 1. App is in standalone mode (PWA)
-    // 2. User is authenticated
-    // 3. Auth is initialized
-    // 4. Currently on root path "/"
-    if (isStandaloneMode && isAuthenticated && user && isInitialized && location.pathname === '/') {
-      // Redirect based on user role
-      switch (user.role) {
-        case 'super_admin':
-          navigate('/super-admin', { replace: true });
-          break;
-        case 'factory_admin':
-          navigate('/admin', { replace: true });
-          break;
-        case 'supervisor':
-          navigate('/supervisor', { replace: true });
-          break;
-        case 'employee':
-          navigate('/employee', { replace: true });
-          break;
-        default:
-          // Stay on landing page for unknown roles
-          break;
+    // For PWA cold starts or when authenticated user is on landing page:
+    // Redirect authenticated users to their dashboard
+    if (isAuthenticated && user && isInitialized) {
+      // Update manifest for role-specific naming
+      updateManifestForRole(user);
+
+      // If in standalone mode (PWA installed) or on landing page, redirect to dashboard
+      if ((isStandaloneMode || location.pathname === '/') && !hasRedirected) {
+        const dashboardPath = getDashboardPathForRole(user.role);
+        
+        if (dashboardPath && dashboardPath !== '/') {
+          setHasRedirected(true);
+          navigate(dashboardPath, { replace: true });
+          return;
+        }
+      }
+    } else if (!isAuthenticated && isInitialized) {
+      // User not authenticated - reset manifest
+      updateManifestForRole(null);
+    }
+  }, [isAuthenticated, user, isInitialized, location.pathname, navigate, hasRedirected]);
+
+  // Handle standalone mode check on mount (for cold starts)
+  useEffect(() => {
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                             (window.navigator as any).standalone === true;
+
+    // If in standalone mode and authenticated, redirect immediately after auth initializes
+    if (isStandaloneMode && isAuthenticated && user && isInitialized && !hasRedirected) {
+      const dashboardPath = getDashboardPathForRole(user.role);
+      if (dashboardPath && dashboardPath !== '/' && location.pathname === '/') {
+        setHasRedirected(true);
+        navigate(dashboardPath, { replace: true });
       }
     }
-  }, [isAuthenticated, user, isInitialized, location.pathname, navigate]);
+  }, [isAuthenticated, user, isInitialized, navigate, hasRedirected, location.pathname]);
 
   return null;
 };
 
 const App = () => {
-  const { isAuthenticated, user, initializeAuth, setDeviceId, getDeviceId } = useAuthStore();
+  const { isAuthenticated, user, initializeAuth, setDeviceId, getDeviceId, isInitialized } = useAuthStore();
+  const [isAuthInitializing, setIsAuthInitializing] = useState(true);
 
   // Initialize authentication on app start
   useEffect(() => {
@@ -130,10 +143,24 @@ const App = () => {
 
     initializeDeviceId();
     
-    initializeAuth().catch((error) => {
-      // Authentication initialization failed
-    });
+    // Initialize auth and wait for it to complete
+    setIsAuthInitializing(true);
+    initializeAuth()
+      .then(() => {
+        setIsAuthInitializing(false);
+      })
+      .catch((error) => {
+        console.error('Auth initialization failed:', error);
+        setIsAuthInitializing(false);
+      });
   }, [initializeAuth, setDeviceId, getDeviceId]);
+
+  // Update manifest when user changes
+  useEffect(() => {
+    if (isInitialized) {
+      updateManifestForRole(user);
+    }
+  }, [user, isInitialized]);
 
   return (
     <QueryClientProvider client={queryClient}>

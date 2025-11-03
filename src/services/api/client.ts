@@ -489,7 +489,8 @@ class ApiClient {
         }
         
         return data;
-      } catch (error) {
+      }
+      catch (error) {
         const err = error as Error;
         lastError = err;
         
