@@ -183,22 +183,62 @@ const WorkEntry: React.FC = () => {
         const handleLoadedMetadata = async () => {
           try {
             clearTimeout(timeoutId);
+            
+            // Set explicit dimensions based on video stream
+            if (video.videoWidth && video.videoHeight) {
+              video.width = video.videoWidth;
+              video.height = video.videoHeight;
+              video.style.width = '100%';
+              video.style.height = 'auto';
+              video.style.display = 'block';
+            }
+            
             // Explicitly play the video
             await video.play();
+            
+            // Force a repaint to ensure video is visible
+            video.style.transform = 'translateZ(0)';
+            
             setIsVideoReady(true);
             setIsCameraLoading(false);
           } catch (playError) {
             console.error('Error playing video:', playError);
             clearTimeout(timeoutId);
             setIsCameraLoading(false);
-            setPhotoError('Failed to start camera preview. Please try again.');
+            
+            // Retry play after a short delay (mobile devices sometimes need this)
+            setTimeout(async () => {
+              try {
+                if (video && video.readyState >= 2) {
+                  await video.play();
+                  setIsVideoReady(true);
+                  setIsCameraLoading(false);
+                }
+              } catch (retryError) {
+                console.error('Retry play failed:', retryError);
+                setPhotoError('Failed to start camera preview. Please try again.');
+              }
+            }, 300);
           }
         };
 
         video.onloadedmetadata = handleLoadedMetadata;
-        video.onerror = () => {
+        
+        video.oncanplay = async () => {
+          try {
+            if (video.paused && video.readyState >= 2) {
+              await video.play();
+            }
+          } catch (error) {
+            console.error('Error on canplay:', error);
+          }
+        };
+        
+        video.onerror = (error) => {
           clearTimeout(timeoutId);
-          throw new Error('Video element failed to load');
+          console.error('Video element error:', error);
+          setIsCameraLoading(false);
+          setPhotoError('Camera failed to initialize. Please try again.');
         };
         
         // Also try to play immediately in case metadata is already loaded
@@ -590,7 +630,12 @@ const WorkEntry: React.FC = () => {
                             autoPlay
                             playsInline
                             muted
-                            style={{ minHeight: '300px' }}
+                            style={{ 
+                              minHeight: '300px',
+                              display: 'block',
+                              width: '100%',
+                              height: 'auto'
+                            }}
                           />
                           <canvas ref={canvasRef} className="hidden" />
                         </div>

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuthStore } from "@/stores/authStore";
 import EnhancedMobileNav from './components/layout/EnhancedMobileNav';
@@ -55,6 +55,47 @@ import WorkEntry from "./pages/employee/WorkEntry";
 import EmployeePerformance from "./pages/employee/EmployeePerformance";
 import EmployeeAttendance from "./pages/employee/EmployeeAttendance";
 
+// Component to handle PWA redirects
+const PWARedirect = () => {
+  const { isAuthenticated, user, isInitialized } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if app is running in standalone mode (PWA)
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                             (window.navigator as any).standalone === true;
+
+    // Only redirect if:
+    // 1. App is in standalone mode (PWA)
+    // 2. User is authenticated
+    // 3. Auth is initialized
+    // 4. Currently on root path "/"
+    if (isStandaloneMode && isAuthenticated && user && isInitialized && location.pathname === '/') {
+      // Redirect based on user role
+      switch (user.role) {
+        case 'super_admin':
+          navigate('/super-admin', { replace: true });
+          break;
+        case 'factory_admin':
+          navigate('/admin', { replace: true });
+          break;
+        case 'supervisor':
+          navigate('/supervisor', { replace: true });
+          break;
+        case 'employee':
+          navigate('/employee', { replace: true });
+          break;
+        default:
+          // Stay on landing page for unknown roles
+          break;
+      }
+    }
+  }, [isAuthenticated, user, isInitialized, location.pathname, navigate]);
+
+  return null;
+};
+
 const App = () => {
   const { isAuthenticated, user, initializeAuth, setDeviceId, getDeviceId } = useAuthStore();
 
@@ -100,6 +141,7 @@ const App = () => {
         <Toaster position="top-right" />
         <Sonner position="top-right" />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <PWARedirect />
           <div className="min-h-screen">
             <Routes>
               {/* Public Routes */}

@@ -5,8 +5,21 @@ import { toast } from 'sonner';
 // Use environment variable or fallback to default
 // In development with Vite proxy, use relative URL to avoid cross-origin issues
 // The proxy in vite.config.ts will forward /api requests to the backend
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
-const WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:3000' : 'ws://localhost:3000');
+let API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+let WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:3000' : 'ws://localhost:3000');
+
+// Auto-upgrade HTTP to HTTPS if page is loaded over HTTPS (to prevent mixed content errors)
+if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+  // If page is HTTPS, upgrade HTTP API URLs to HTTPS
+  if (API_URL.startsWith('http://')) {
+    API_URL = API_URL.replace('http://', 'https://');
+    console.warn('⚠️ Upgraded API URL to HTTPS to prevent mixed content errors:', API_URL);
+  }
+  if (WS_URL.startsWith('ws://')) {
+    WS_URL = WS_URL.replace('ws://', 'wss://');
+    console.warn('⚠️ Upgraded WebSocket URL to WSS to prevent mixed content errors:', WS_URL);
+  }
+}
 
 
 export interface ApiResponse<T = any> {

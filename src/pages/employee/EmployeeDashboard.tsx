@@ -283,15 +283,8 @@ export default function EmployeeDashboard() {
           setSelectedShift('Morning');
         }
         
-        // Load today's attendance
-        try {
-          const attendanceResponse = await attendanceService.getTodayAttendance(user.id || user._id);
-          const attendanceData = attendanceResponse.data;
-          // Attendance data loaded
-          setAttendance(attendanceData);
-        } catch (error) {
-          // No attendance data yet (normal for new users)
-        }
+        // Don't load attendance automatically - only when user clicks Check In
+        // Attendance will be loaded when user checks in
         
         // Load work entries
         try {
@@ -800,17 +793,40 @@ export default function EmployeeDashboard() {
       video.srcObject = cameraStream;
       
       // Wait for the video to be ready
-      video.onloadedmetadata = () => {
-        video.play().catch(error => {
+      video.onloadedmetadata = async () => {
+        try {
+          // Set explicit dimensions based on video stream
+          if (video.videoWidth && video.videoHeight) {
+            video.width = video.videoWidth;
+            video.height = video.videoHeight;
+          }
+          
+          // Force a repaint to ensure video is visible
+          video.style.transform = 'translateZ(0)';
+          
+          await video.play();
+        } catch (error) {
           console.error('Video play error:', error);
-        });
+          // Retry after short delay
+          setTimeout(async () => {
+            try {
+              if (video && video.readyState >= 2 && video.paused) {
+                await video.play();
+              }
+            } catch (retryError) {
+              console.error('Retry video play error:', retryError);
+            }
+          }, 300);
+        }
       };
       
-      video.oncanplay = () => {
-        if (video.paused) {
-          video.play().catch(error => {
-            console.error('Video play error on canplay:', error);
-          });
+      video.oncanplay = async () => {
+        try {
+          if (video.paused && video.readyState >= 2) {
+            await video.play();
+          }
+        } catch (error) {
+          console.error('Video play error on canplay:', error);
         }
       };
       
@@ -818,12 +834,14 @@ export default function EmployeeDashboard() {
         console.error('Video error:', error);
       };
       
-      // Force play after a short delay
-      setTimeout(() => {
-        if (video.paused && video.readyState >= 2) {
-          video.play().catch(error => {
-            console.error('Forced video play error:', error);
-          });
+      // Force play after a short delay (mobile devices sometimes need this)
+      setTimeout(async () => {
+        try {
+          if (video && video.paused && video.readyState >= 2) {
+            await video.play();
+          }
+        } catch (error) {
+          console.error('Forced video play error:', error);
         }
       }, 500);
     }
@@ -934,7 +952,38 @@ export default function EmployeeDashboard() {
             setAllWorkEntries(prev => [newWorkEntry, ...prev]);
           }
           
-          toast.success('Production submitted successfully!');
+          // Calculate work hours between check-in and checkout for first process stage
+          if (attendance && attendance.checkIn && attendance.checkIn.time) {
+            const checkInTime = new Date(attendance.checkIn.time);
+            const checkOutTime = new Date();
+            const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+            
+            // Perform checkout with location after work entry is submitted
+            try {
+              const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 0
+                });
+              });
+
+              const location = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              };
+
+              await attendanceService.checkOut(attendance._id, location);
+              setAttendance(null);
+              
+              toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
+            } catch (checkoutError: any) {
+              console.error('Checkout error:', checkoutError);
+              toast.warning('Production submitted successfully. However, checkout failed. Please contact supervisor.');
+            }
+          } else {
+            toast.success('Production submitted successfully!');
+          }
           
           // Reset form and reload data for full sync
           await loadDashboardData();
@@ -1005,14 +1054,13 @@ export default function EmployeeDashboard() {
         });
       }
       
-      // Calculate total hours worked
+      // Calculate work hours between check-in and checkout
       if (attendance && attendance.checkIn && attendance.checkIn.time) {
         const checkInTime = new Date(attendance.checkIn.time);
         const checkOutTime = new Date();
         const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
         
-        
-        // Perform checkout with location
+        // Perform checkout with location after work entry is submitted
         try {
           const position = await new Promise<GeolocationPosition>((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -1030,10 +1078,10 @@ export default function EmployeeDashboard() {
           await attendanceService.checkOut(attendance._id, location);
           setAttendance(null);
           
-          toast.success(`Production submitted and checked out successfully! Total hours: ${totalHours.toFixed(2)}h`);
+          toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
         } catch (checkoutError: any) {
           console.error('Checkout error:', checkoutError);
-          toast.error('Production submitted but checkout failed. Please contact supervisor.');
+          toast.warning('Production submitted successfully. However, checkout failed. Please contact supervisor.');
         }
       } else {
         toast.success('Production data submitted successfully');
