@@ -149,6 +149,8 @@ export const useDeleteProcess = () => {
   return useMutation({
     mutationFn: (id: string) => processService.deleteProcess(id),
     onSuccess: () => {
+      // Invalidate all process queries to refresh any component using processes
+      queryClient.invalidateQueries({ queryKey: ['processes', factoryId!] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId!) });
       toast.success('Process deleted successfully');
     },

@@ -35,6 +35,7 @@ import { processService, productService } from '@/services/api';
 import { Process, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { useDeleteProcess } from '@/hooks/useApi';
 
 const Processes = () => {
   const { user } = useAuthStore();
@@ -43,6 +44,7 @@ const Processes = () => {
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProcess, setEditingProcess] = useState<Process | null>(null);
+  const deleteProcess = useDeleteProcess();
   const [formData, setFormData] = useState({
     name: '',
     productId: '',
@@ -118,22 +120,16 @@ const Processes = () => {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this process?')) {
       try {
-        // Call API to delete process
-        await processService.deleteProcess(id);
-        // Optimistic update
+        // Use React Query hook which will handle cache invalidation
+        await deleteProcess.mutateAsync(id);
+        // Optimistic update for immediate UI feedback
         setProcesses(prev => prev.filter(p => p.id !== id));
-        toast({
-          title: 'Success',
-          description: 'Process deleted successfully',
-        });
         // Refresh data to ensure consistency with server
         await loadData();
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to delete process',
-          variant: 'destructive',
-        });
+        // Error toast is handled by the hook
+        // Revert optimistic update on error
+        await loadData();
       }
     }
   };
