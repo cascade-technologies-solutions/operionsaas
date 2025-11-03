@@ -36,6 +36,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatTime, formatHours, calculateHours } from '@/utils/dateUtils';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
+import { CameraCapture } from '@/components/CameraCapture';
 
 export default function EmployeeDashboard() {
   const { user, updateUser, refreshUser, isAuthenticated } = useAuthStore();
@@ -52,8 +53,6 @@ export default function EmployeeDashboard() {
   const [achievedQuantity, setAchievedQuantity] = useState('');
   const [rejectedQuantity, setRejectedQuantity] = useState('');
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [cameraVideo, setCameraVideo] = useState<HTMLVideoElement | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -672,192 +671,15 @@ export default function EmployeeDashboard() {
 
   // handleCheckOut removed - production submission now acts as checkout
 
-  const handleOpenCamera = async () => {
-    try {
-      // Check if camera is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast.error('Camera not available on this device');
-        return;
-      }
-
-      // Get camera stream - try back camera first, then any camera
-      let stream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: 'environment', // Use back camera if available
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          } 
-        });
-      } catch (backCameraError) {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          } 
-        });
-      }
-      
-      // Check if we have video tracks
-      const videoTracks = stream.getVideoTracks();
-      if (videoTracks.length === 0) {
-        toast.error('No video tracks available');
-        return;
-      }
-      
-      setCameraStream(stream);
-      setIsCameraOpen(true);
-      toast.success('Camera opened. Position your device and click "Capture" to take the photo.');
-      
-    } catch (error: any) {
-      console.error('Camera open error:', error);
-      toast.error('Failed to open camera. Please try again.');
-    }
+  const handleCameraCapture = (photoDataUrl: string) => {
+    setCapturedPhoto(photoDataUrl);
+    setIsCameraOpen(false);
+    toast.success('Photo captured successfully!');
   };
 
-  const handleCapturePhoto = () => {
-    if (!cameraVideo || !cameraStream) {
-      toast.error('Camera not ready. Please try again.');
-      return;
-    }
-
-    try {
-      // Create a canvas to capture the photo
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      
-      if (!context) {
-        toast.error('Failed to create canvas context');
-        return;
-      }
-
-      // Set canvas dimensions to match video
-      canvas.width = cameraVideo.videoWidth;
-      canvas.height = cameraVideo.videoHeight;
-
-      // Draw video frame to canvas
-      context.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
-
-      // Convert canvas to base64 image
-      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      setCapturedPhoto(photoDataUrl);
-
-      // Close camera
-      handleCloseCamera();
-
-      toast.success('Photo captured successfully!');
-      
-    } catch (error: any) {
-      console.error('Photo capture error:', error);
-      toast.error('Failed to capture photo. Please try again.');
-    }
-  };
-
-
-  const handleCloseCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
-    }
-    if (cameraVideo) {
-      document.body.removeChild(cameraVideo);
-      setCameraVideo(null);
-    }
+  const handleCameraCancel = () => {
     setIsCameraOpen(false);
   };
-
-  // Handle camera video element when camera is opened
-  useEffect(() => {
-    if (isCameraOpen && cameraStream && !cameraVideo) {
-      const video = document.createElement('video');
-      video.style.position = 'fixed';
-      video.style.top = '0';
-      video.style.left = '0';
-      video.style.width = '100%';
-      video.style.height = '100%';
-      video.style.objectFit = 'cover';
-      video.style.zIndex = '9999';
-      video.style.backgroundColor = 'black';
-      video.autoplay = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.controls = false;
-      video.loop = false;
-      
-      // Add to DOM first
-      document.body.appendChild(video);
-      setCameraVideo(video);
-      
-      // Then set the stream
-      video.srcObject = cameraStream;
-      
-      // Wait for the video to be ready
-      video.onloadedmetadata = async () => {
-        try {
-          // Set explicit dimensions based on video stream
-          if (video.videoWidth && video.videoHeight) {
-            video.width = video.videoWidth;
-            video.height = video.videoHeight;
-          }
-          
-          // Force a repaint to ensure video is visible
-          video.style.transform = 'translateZ(0)';
-          
-          await video.play();
-        } catch (error) {
-          console.error('Video play error:', error);
-          // Retry after short delay
-          setTimeout(async () => {
-            try {
-              if (video && video.readyState >= 2 && video.paused) {
-                await video.play();
-              }
-            } catch (retryError) {
-              console.error('Retry video play error:', retryError);
-            }
-          }, 300);
-        }
-      };
-      
-      video.oncanplay = async () => {
-        try {
-          if (video.paused && video.readyState >= 2) {
-            await video.play();
-          }
-        } catch (error) {
-          console.error('Video play error on canplay:', error);
-        }
-      };
-      
-      video.onerror = (error) => {
-        console.error('Video error:', error);
-      };
-      
-      // Force play after a short delay (mobile devices sometimes need this)
-      setTimeout(async () => {
-        try {
-          if (video && video.paused && video.readyState >= 2) {
-            await video.play();
-          }
-        } catch (error) {
-          console.error('Forced video play error:', error);
-        }
-      }, 500);
-    }
-  }, [isCameraOpen, cameraStream, cameraVideo]);
-
-  // Cleanup camera on component unmount
-  useEffect(() => {
-    return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
-      if (cameraVideo) {
-        document.body.removeChild(cameraVideo);
-      }
-    };
-  }, [cameraStream, cameraVideo]);
 
   const handleSubmitProduction = async (e?: React.MouseEvent) => {
     if (e) {
@@ -1729,65 +1551,51 @@ export default function EmployeeDashboard() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="photo-capture">Production Photo (Optional)</Label>
-                    <div className="flex gap-2">
-                      {!isCameraOpen ? (
-                        <div className="flex gap-2 w-full">
-                          <Button 
-                            type="button"
-                            variant="outline"
-                            onClick={handleOpenCamera}
-                            disabled={loading}
-                            className="flex-1"
-                          >
-                            <Camera className="h-4 w-4 mr-2" />
-                            {capturedPhoto ? 'Retake Photo' : 'Open Camera'}
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2 w-full">
+                    {!capturedPhoto && !isCameraOpen && (
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsCameraOpen(true)}
+                        disabled={loading}
+                        className="w-full"
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Capture Photo
+                      </Button>
+                    )}
+                    {isCameraOpen && (
+                      <CameraCapture
+                        onCapture={handleCameraCapture}
+                        onCancel={handleCameraCancel}
+                      />
+                    )}
+                    {capturedPhoto && !isCameraOpen && (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <img 
+                            src={capturedPhoto} 
+                            alt="Captured production photo" 
+                            className="w-full max-w-xs h-auto rounded-lg border"
+                          />
                           <Button
                             type="button"
-                            onClick={handleCapturePhoto}
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                          >
-                            <Camera className="h-4 w-4 mr-2" />
-                            Capture
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleCloseCamera}
-                            className="px-3"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setCapturedPhoto(null)}
+                            className="absolute top-2 right-2"
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                      )}
-                      {capturedPhoto && !isCameraOpen && (
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => setCapturedPhoto(null)}
-                          className="px-3"
+                          onClick={() => setIsCameraOpen(true)}
+                          className="w-full"
                         >
-                          <X className="h-4 w-4" />
+                          <Camera className="h-4 w-4 mr-2" />
+                          Retake Photo
                         </Button>
-                      )}
-                    </div>
-                    {capturedPhoto && !isCameraOpen && (
-                      <div className="mt-2">
-                        <img 
-                          src={capturedPhoto} 
-                          alt="Captured production photo" 
-                          className="w-full max-w-xs h-auto rounded-lg border"
-                        />
-                      </div>
-                    )}
-                    {isCameraOpen && (
-                      <div className="mt-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="text-sm text-blue-800">
-                          📷 Camera is open. Position your device and click "Capture" to take the photo.
-                        </div>
                       </div>
                     )}
                   </div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, X, Loader2 } from 'lucide-react';
+import { Camera, Upload, X } from 'lucide-react';
 import { useSubmitWork } from '@/hooks/useApi';
 import { useTenant } from '@/contexts/TenantContext';
+import { CameraCapture } from '@/components/CameraCapture';
 
 const workEntrySchema = z.object({
   targetQuantity: z.number().min(1, 'Target quantity must be greater than 0'),
@@ -37,12 +38,6 @@ export const WorkEntryForm: React.FC<WorkEntryFormProps> = ({
 }) => {
   const [photo, setPhoto] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [isCameraLoading, setIsCameraLoading] = useState(false);
-  const [isVideoReady, setIsVideoReady] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   
   const { factoryId } = useTenant();
   const submitWork = useSubmitWork();
@@ -61,185 +56,14 @@ export const WorkEntryForm: React.FC<WorkEntryFormProps> = ({
     },
   });
 
-  // Ensure video plays when stream is ready
-  useEffect(() => {
-    if (videoRef.current && streamRef.current && isCapturing) {
-      const video = videoRef.current;
-      if (video.srcObject && video.paused) {
-        video.play().catch((error) => {
-          console.error('Error playing video in useEffect:', error);
-        });
-      }
-    }
-  }, [isCapturing, isVideoReady]);
-
-  const startCamera = async () => {
-    try {
-      setCameraError(null);
-      setIsCameraLoading(true);
-      setIsCapturing(true);
-      setIsVideoReady(false);
-
-      // Request camera access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment', // Use rear camera on mobile
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
-
-      streamRef.current = stream;
-
-      // Set stream to video element and wait for it to be ready
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = stream;
-        
-        // Timeout if video doesn't load within 10 seconds
-        const timeoutId = setTimeout(() => {
-          if (video && video.readyState < 2) {
-            setIsCameraLoading(false);
-            setCameraError('Camera took too long to initialize. Please try again.');
-          }
-        }, 10000);
-        
-        // Wait for video metadata to load and then play
-        const handleLoadedMetadata = async () => {
-          try {
-            clearTimeout(timeoutId);
-            
-            // Set explicit dimensions based on video stream
-            if (video.videoWidth && video.videoHeight) {
-              video.width = video.videoWidth;
-              video.height = video.videoHeight;
-              video.style.width = '100%';
-              video.style.height = 'auto';
-              video.style.display = 'block';
-            }
-            
-            // Explicitly play the video
-            await video.play();
-            
-            // Force a repaint to ensure video is visible
-            video.style.transform = 'translateZ(0)';
-            
-            setIsVideoReady(true);
-            setIsCameraLoading(false);
-          } catch (playError) {
-            console.error('Error playing video:', playError);
-            clearTimeout(timeoutId);
-            setIsCameraLoading(false);
-            
-            // Retry play after a short delay (mobile devices sometimes need this)
-            setTimeout(async () => {
-              try {
-                if (video && video.readyState >= 2) {
-                  await video.play();
-                  setIsVideoReady(true);
-                  setIsCameraLoading(false);
-                }
-              } catch (retryError) {
-                console.error('Retry play failed:', retryError);
-                setCameraError('Failed to start camera preview. Please try again.');
-              }
-            }, 300);
-          }
-        };
-
-        video.onloadedmetadata = handleLoadedMetadata;
-        
-        video.oncanplay = async () => {
-          try {
-            if (video.paused && video.readyState >= 2) {
-              await video.play();
-            }
-          } catch (error) {
-            console.error('Error on canplay:', error);
-          }
-        };
-        
-        video.onerror = (error) => {
-          clearTimeout(timeoutId);
-          console.error('Video element error:', error);
-          setIsCameraLoading(false);
-          setCameraError('Camera failed to initialize. Please try again.');
-        };
-        
-        // Also try to play immediately in case metadata is already loaded
-        if (video.readyState >= 1) {
-          handleLoadedMetadata();
-        }
-      }
-    } catch (error) {
-      console.error('Camera access error:', error);
-      setCameraError(
-        error instanceof Error && error.name === 'NotAllowedError'
-          ? 'Camera permission denied. Please allow camera access and try again.'
-          : error instanceof Error && error.name === 'NotFoundError'
-          ? 'No camera found. Please ensure your device has a camera.'
-          : 'Failed to access camera. Please ensure your device has a camera and try again.'
-      );
-      setIsCapturing(false);
-      setIsCameraLoading(false);
-      setIsVideoReady(false);
-      streamRef.current = null;
-    }
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) {
-      setCameraError('Camera not initialized. Please try again.');
-      return;
-    }
-
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      // Draw current video frame to canvas
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Failed to get canvas context');
-      }
-
-      ctx.drawImage(video, 0, 0);
-
-      // Convert canvas to base64 data URL
-      const capturedPhoto = canvas.toDataURL('image/jpeg', 0.8);
-      
-      setPhoto(capturedPhoto);
-      form.setValue('photo', capturedPhoto);
-
-      // Stop camera stream
-      stopCamera();
-    } catch (error) {
-      console.error('Photo capture error:', error);
-      setCameraError('Failed to capture photo. Please try again.');
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-      // Remove event listeners
-      videoRef.current.onloadedmetadata = null;
-      videoRef.current.onerror = null;
-    }
-
+  const handleCameraCapture = (photoDataUrl: string) => {
+    setPhoto(photoDataUrl);
+    form.setValue('photo', photoDataUrl);
     setIsCapturing(false);
-    setIsCameraLoading(false);
-    setIsVideoReady(false);
-    setCameraError(null);
+  };
+
+  const handleCameraCancel = () => {
+    setIsCapturing(false);
   };
 
   const removePhoto = () => {
@@ -404,7 +228,7 @@ export const WorkEntryForm: React.FC<WorkEntryFormProps> = ({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={startCamera}
+                  onClick={() => setIsCapturing(true)}
                   className="w-full h-32 border-dashed border-2 flex flex-col gap-2"
                 >
                   <Camera className="h-8 w-8 text-muted-foreground" />
@@ -414,77 +238,10 @@ export const WorkEntryForm: React.FC<WorkEntryFormProps> = ({
               )}
 
               {isCapturing && (
-                <div className="space-y-4">
-                  {cameraError ? (
-                    <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
-                      <p className="text-sm text-destructive">{cameraError}</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={stopCamera}
-                        className="mt-2 w-full"
-                      >
-                        Close
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="relative bg-black rounded-lg overflow-hidden">
-                        {isCameraLoading && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-                            <div className="flex flex-col items-center gap-2">
-                              <Loader2 className="h-8 w-8 animate-spin text-white" />
-                              <p className="text-sm text-white">Starting camera...</p>
-                            </div>
-                          </div>
-                        )}
-                        <video
-                          ref={videoRef}
-                          className="w-full aspect-video object-cover"
-                          autoPlay
-                          playsInline
-                          muted
-                          style={{ 
-                            minHeight: '300px',
-                            display: 'block',
-                            width: '100%',
-                            height: 'auto'
-                          }}
-                        />
-                        <canvas ref={canvasRef} className="hidden" />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          onClick={capturePhoto}
-                          disabled={isCameraLoading || !isVideoReady}
-                          className="flex-1"
-                        >
-                          {isCameraLoading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <Camera className="h-4 w-4 mr-2" />
-                              Capture Photo
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={stopCamera}
-                          disabled={isCameraLoading}
-                          className="flex-1"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                <CameraCapture
+                  onCapture={handleCameraCapture}
+                  onCancel={handleCameraCancel}
+                />
               )}
 
               {photo && (
@@ -505,6 +262,15 @@ export const WorkEntryForm: React.FC<WorkEntryFormProps> = ({
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCapturing(true)}
+                    className="w-full"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Retake Photo
+                  </Button>
                 </div>
               )}
             </div>

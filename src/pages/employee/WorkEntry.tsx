@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Camera, Loader2, AlertCircle } from 'lucide-react';
+import { Camera, Loader2, AlertCircle, X } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { workEntryService, machineService } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { WorkEntry as WorkEntryType, Process, Machine } from '@/types';
+import { CameraCapture } from '@/components/CameraCapture';
 
 // Type for populated WorkEntry from backend
 interface PopulatedWorkEntry extends Omit<WorkEntryType, 'processId'> {
@@ -50,31 +51,23 @@ const WorkEntry: React.FC = () => {
   const [reasonForLessProduction, setReasonForLessProduction] = useState('');
   const [photo, setPhoto] = useState<string>('');
   const [currentWorkEntry, setCurrentWorkEntry] = useState<WorkEntryType | PopulatedWorkEntry | null>(null);
-  const [photoError, setPhotoError] = useState('');
   const [machines, setMachines] = useState<Machine[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [isCameraLoading, setIsCameraLoading] = useState(false);
-  const [isVideoReady, setIsVideoReady] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     loadCurrentWorkEntry();
     loadMachines();
   }, []);
 
-  // Ensure video plays when stream is ready
-  useEffect(() => {
-    if (videoRef.current && streamRef.current && isCapturing) {
-      const video = videoRef.current;
-      if (video.srcObject && video.paused) {
-        video.play().catch((error) => {
-          console.error('Error playing video in useEffect:', error);
-        });
-      }
-    }
-  }, [isCapturing, isVideoReady]);
+  const handleCameraCapture = (photoDataUrl: string) => {
+    setPhoto(photoDataUrl);
+    setIsCapturing(false);
+    toast.success('Photo captured successfully!');
+  };
+
+  const handleCameraCancel = () => {
+    setIsCapturing(false);
+  };
 
   // Refresh work entry data when component comes into focus
   useEffect(() => {
@@ -148,178 +141,6 @@ const WorkEntry: React.FC = () => {
     }
   };
 
-  const startCamera = async () => {
-    try {
-      setPhotoError('');
-      setIsCameraLoading(true);
-      setIsCapturing(true);
-      setIsVideoReady(false);
-
-      // Request camera access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment', // Use rear camera on mobile
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
-
-      streamRef.current = stream;
-
-      // Set stream to video element and wait for it to be ready
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = stream;
-        
-        // Timeout if video doesn't load within 10 seconds
-        const timeoutId = setTimeout(() => {
-          if (video && video.readyState < 2) {
-            setIsCameraLoading(false);
-            setPhotoError('Camera took too long to initialize. Please try again.');
-          }
-        }, 10000);
-        
-        // Wait for video metadata to load and then play
-        const handleLoadedMetadata = async () => {
-          try {
-            clearTimeout(timeoutId);
-            
-            // Set explicit dimensions based on video stream
-            if (video.videoWidth && video.videoHeight) {
-              video.width = video.videoWidth;
-              video.height = video.videoHeight;
-              video.style.width = '100%';
-              video.style.height = 'auto';
-              video.style.display = 'block';
-            }
-            
-            // Explicitly play the video
-            await video.play();
-            
-            // Force a repaint to ensure video is visible
-            video.style.transform = 'translateZ(0)';
-            
-            setIsVideoReady(true);
-            setIsCameraLoading(false);
-          } catch (playError) {
-            console.error('Error playing video:', playError);
-            clearTimeout(timeoutId);
-            setIsCameraLoading(false);
-            
-            // Retry play after a short delay (mobile devices sometimes need this)
-            setTimeout(async () => {
-              try {
-                if (video && video.readyState >= 2) {
-                  await video.play();
-                  setIsVideoReady(true);
-                  setIsCameraLoading(false);
-                }
-              } catch (retryError) {
-                console.error('Retry play failed:', retryError);
-                setPhotoError('Failed to start camera preview. Please try again.');
-              }
-            }, 300);
-          }
-        };
-
-        video.onloadedmetadata = handleLoadedMetadata;
-        
-        video.oncanplay = async () => {
-          try {
-            if (video.paused && video.readyState >= 2) {
-              await video.play();
-            }
-          } catch (error) {
-            console.error('Error on canplay:', error);
-          }
-        };
-        
-        video.onerror = (error) => {
-          clearTimeout(timeoutId);
-          console.error('Video element error:', error);
-          setIsCameraLoading(false);
-          setPhotoError('Camera failed to initialize. Please try again.');
-        };
-        
-        // Also try to play immediately in case metadata is already loaded
-        if (video.readyState >= 1) {
-          handleLoadedMetadata();
-        }
-      }
-    } catch (error: any) {
-      console.error('Camera access error:', error);
-      const errorMessage = 
-        error?.name === 'NotAllowedError'
-          ? 'Camera permission denied. Please allow camera access and try again.'
-          : error?.name === 'NotFoundError'
-          ? 'No camera found. Please ensure your device has a camera.'
-          : 'Failed to access camera. Please ensure your device has a camera and try again.';
-      
-      setPhotoError(errorMessage);
-      setIsCapturing(false);
-      setIsCameraLoading(false);
-      setIsVideoReady(false);
-      streamRef.current = null;
-      toast.error(errorMessage);
-    }
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) {
-      setPhotoError('Camera not initialized. Please try again.');
-      return;
-    }
-
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      // Draw current video frame to canvas
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Failed to get canvas context');
-      }
-
-      ctx.drawImage(video, 0, 0);
-
-      // Convert canvas to base64 data URL
-      const capturedPhoto = canvas.toDataURL('image/jpeg', 0.8);
-      
-      setPhoto(capturedPhoto);
-      toast.success('Photo captured successfully!');
-
-      // Stop camera stream
-      stopCamera();
-    } catch (error: any) {
-      console.error('Photo capture error:', error);
-      const errorMessage = `Failed to capture photo: ${error.message || 'Unknown error'}`;
-      setPhotoError(errorMessage);
-      toast.error(errorMessage);
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-      // Remove event listeners
-      videoRef.current.onloadedmetadata = null;
-      videoRef.current.onerror = null;
-    }
-
-    setIsCapturing(false);
-    setIsCameraLoading(false);
-    setIsVideoReady(false);
-    setPhotoError('');
-  };
 
 
   const handleSubmit = async () => {
@@ -585,119 +406,66 @@ const WorkEntry: React.FC = () => {
             {/* Photo Capture - Camera Only */}
             <div className="space-y-2">
               <Label>Work Photo *</Label>
-              <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
-                {photo ? (
-                  <div className="space-y-4">
+              {!photo && !isCapturing && (
+                <div className="border-2 border-dashed border-muted-foreground rounded-lg p-6 text-center">
+                  <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <Button 
+                    onClick={() => setIsCapturing(true)} 
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4 mr-2" />
+                        Capture Photo
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Camera capture only - no gallery access
+                  </p>
+                </div>
+              )}
+
+              {isCapturing && (
+                <CameraCapture
+                  onCapture={handleCameraCapture}
+                  onCancel={handleCameraCancel}
+                />
+              )}
+
+              {photo && (
+                <div className="space-y-4">
+                  <div className="relative">
                     <img src={photo} alt="Captured work" className="mx-auto max-w-xs rounded-lg" />
                     <Button 
                       onClick={() => {
                         setPhoto('');
-                        stopCamera();
+                        setIsCapturing(false);
                       }} 
-                      variant="outline" 
+                      variant="destructive"
                       size="sm"
+                      className="absolute top-2 right-2"
                     >
-                      Retake Photo
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
-                ) : isCapturing ? (
-                  <div className="space-y-4">
-                    {photoError ? (
-                      <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
-                        <p className="text-sm text-destructive">{photoError}</p>
-                        <Button
-                          onClick={stopCamera}
-                          variant="outline"
-                          className="mt-2 w-full"
-                        >
-                          Close
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative bg-black rounded-lg overflow-hidden">
-                          {isCameraLoading && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-                              <div className="flex flex-col items-center gap-2">
-                                <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                <p className="text-sm text-white">Starting camera...</p>
-                              </div>
-                            </div>
-                          )}
-                          <video
-                            ref={videoRef}
-                            className="w-full aspect-video object-cover"
-                            autoPlay
-                            playsInline
-                            muted
-                            style={{ 
-                              minHeight: '300px',
-                              display: 'block',
-                              width: '100%',
-                              height: 'auto'
-                            }}
-                          />
-                          <canvas ref={canvasRef} className="hidden" />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            onClick={capturePhoto} 
-                            disabled={loading || isCameraLoading || !isVideoReady}
-                            className="flex-1"
-                          >
-                            {isCameraLoading ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Loading...
-                              </>
-                            ) : (
-                              <>
-                                <Camera className="h-4 w-4 mr-2" />
-                                Capture Photo
-                              </>
-                            )}
-                          </Button>
-                          <Button 
-                            onClick={stopCamera}
-                            variant="outline"
-                            className="flex-1"
-                            disabled={isCameraLoading}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <Camera className="h-12 w-12 mx-auto text-muted-foreground" />
-                    <div>
-                      <Button 
-                        onClick={startCamera} 
-                        disabled={loading}
-                        className="w-full"
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <Camera className="h-4 w-4 mr-2" />
-                            Start Camera
-                          </>
-                        )}
-                      </Button>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {photoError && <span className="text-red-500 block">{photoError}</span>}
-                        {!photoError && "Camera capture only - no gallery access"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  <Button 
+                    onClick={() => setIsCapturing(true)} 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Retake Photo
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}
