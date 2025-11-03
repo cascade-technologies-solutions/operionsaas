@@ -229,7 +229,10 @@ export default function EmployeeDashboard() {
       // Load processes for the factory - employees can work on any process
       const processesResponse = await processService.getProcesses();
       const allProcesses = 'data' in processesResponse ? processesResponse.data : processesResponse;
-      const processesArray = Array.isArray(allProcesses) ? allProcesses : [];
+      // ROOT FIX: Filter out null/undefined processes at source
+      const processesArray = Array.isArray(allProcesses) 
+        ? allProcesses.filter(p => p != null && p._id != null) 
+        : [];
       
       if (processesArray.length > 0) {
         setProcesses(processesArray);
@@ -237,27 +240,42 @@ export default function EmployeeDashboard() {
         // Load machines
         const machinesResponse = await machineService.getMachines();
         const allMachines = 'data' in machinesResponse ? machinesResponse.data : machinesResponse;
-        const machinesArray = Array.isArray(allMachines) ? allMachines : [];
+        // ROOT FIX: Filter out null/undefined machines at source
+        const machinesArray = Array.isArray(allMachines) 
+          ? allMachines.filter(m => m != null && m._id != null) 
+          : [];
         setMachines(machinesArray);
         
         // Load products
         const productsResponse = await productService.getProducts();
         const allProducts = 'data' in productsResponse ? productsResponse.data : productsResponse;
-        const productsArray = Array.isArray(allProducts) ? allProducts : [];
+        // ROOT FIX: Filter out null/undefined products at source
+        const productsArray = Array.isArray(allProducts) 
+          ? allProducts.filter(p => p != null && p._id != null) 
+          : [];
         setProducts(productsArray);
         
         // Set default selections only if no saved selections exist
         // The restoration logic will be handled by the useEffect hooks
         if (productsArray.length > 0 && !getSelectionFromStorage('employee_selected_product')) {
-          setSelectedProduct(productsArray[0]._id);
+          const firstProductId = productsArray[0]?._id;
+          if (firstProductId) {
+            setSelectedProduct(typeof firstProductId === 'string' ? firstProductId : String(firstProductId));
+          }
         }
         
         if (processesArray.length > 0 && !getSelectionFromStorage('employee_selected_process')) {
-          setSelectedProcess(processesArray[0]._id);
+          const firstProcessId = processesArray[0]?._id;
+          if (firstProcessId) {
+            setSelectedProcess(typeof firstProcessId === 'string' ? firstProcessId : String(firstProcessId));
+          }
         }
         
         if (machinesArray.length > 0 && !getSelectionFromStorage('employee_selected_machine')) {
-          setSelectedMachine(machinesArray[0]._id);
+          const firstMachineId = machinesArray[0]?._id;
+          if (firstMachineId) {
+            setSelectedMachine(typeof firstMachineId === 'string' ? firstMachineId : String(firstMachineId));
+          }
         }
         
         // Load shifts from factory settings
@@ -643,13 +661,29 @@ export default function EmployeeDashboard() {
     // Group by process and product for process breakdown
     const processGroups = new Map<string, any>();
     
+    // ROOT FIX: Safe ID extraction helper to prevent null._id errors
+    const getSafeId = (item: any): string | null => {
+      if (!item) return null;
+      if (typeof item === 'string') return item;
+      // Handle populated MongoDB documents
+      if (item && typeof item === 'object' && item._id) {
+        return typeof item._id === 'string' ? item._id : String(item._id);
+      }
+      return null;
+    };
+    
     todayEntries.forEach(entry => {
-      const machineName = entry.machineId ? getMachineName(typeof entry.machineId === 'string' ? entry.machineId : (entry.machineId as any)._id) : 'Unknown';
-      const productName = entry.productId ? getProductName(typeof entry.productId === 'string' ? entry.productId : (entry.productId as any)._id) : 'Unknown';
-      const processName = entry.processId ? getProcessName(typeof entry.processId === 'string' ? entry.processId : (entry.processId as any)._id) : 'Unknown';
+      // ROOT FIX: Safely extract IDs with null checks
+      const machineId = getSafeId(entry.machineId);
+      const productId = getSafeId(entry.productId);
+      const processId = getSafeId(entry.processId);
       
-      if (entry.machineId) uniqueMachines.add(machineName);
-      if (entry.productId) uniqueProducts.add(productName);
+      const machineName = machineId ? getMachineName(machineId) : 'Unknown';
+      const productName = productId ? getProductName(productId) : 'Unknown';
+      const processName = processId ? getProcessName(processId) : 'Unknown';
+      
+      if (machineId) uniqueMachines.add(machineName);
+      if (productId) uniqueProducts.add(productName);
       
       // Group by machine
       const existing = machineStats.find(stat => stat.machine === machineName);
@@ -667,26 +701,28 @@ export default function EmployeeDashboard() {
         });
       }
 
-      // Group by process and product
-      const processId = typeof entry.processId === 'string' ? entry.processId : (entry.processId as any)._id;
-      const productId = typeof entry.productId === 'string' ? entry.productId : (entry.productId as any)._id;
-      const processKey = `${processId}-${productId}`;
-      if (!processGroups.has(processKey)) {
-        processGroups.set(processKey, {
-          processId: processId,
-          processName: processName,
-          productId: productId,
-          productName: productName,
-          achieved: 0,
-          rejected: 0,
-          entries: 0
-        });
+      // Group by process and product - skip if IDs are null
+      if (processId && productId) {
+        const processKey = `${processId}-${productId}`;
+        if (!processGroups.has(processKey)) {
+          processGroups.set(processKey, {
+            processId: processId,
+            processName: processName,
+            productId: productId,
+            productName: productName,
+            achieved: 0,
+            rejected: 0,
+            entries: 0
+          });
+        }
+        
+        const group = processGroups.get(processKey);
+        if (group) {
+          group.achieved += entry.achieved || 0;
+          group.rejected += entry.rejected || 0;
+          group.entries += 1;
+        }
       }
-      
-      const group = processGroups.get(processKey);
-      group.achieved += entry.achieved || 0;
-      group.rejected += entry.rejected || 0;
-      group.entries += 1;
     });
 
     return {
