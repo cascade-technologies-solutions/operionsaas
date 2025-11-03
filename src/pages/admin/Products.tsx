@@ -770,7 +770,6 @@ const Products = () => {
 
             {/* Processes List */}
             <div className="space-y-4 mt-6" key={`processes-${refreshKey}`}>
-              <h3 className="text-lg font-semibold">All Processes</h3>
               {processes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No processes found. Create your first process above.
