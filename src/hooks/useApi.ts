@@ -144,7 +144,7 @@ export const useDeleteProcess = () => {
   const { factoryId } = useTenant();
   
   return useMutation({
-    mutationFn: (id: string) => processService.deleteProcess(factoryId!, id),
+    mutationFn: (id: string) => processService.deleteProcess(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId!) });
       toast.success('Process deleted successfully');
