@@ -322,8 +322,20 @@ class ApiClient {
           console.error('❌ API Error Response:', errorData);
           
           // Create ApiError with full details for all error statuses
+          let errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+          
+          // Provide more specific messages for common errors
+          if (response.status === 503) {
+            errorMessage = 'Backend server is unavailable. Please check if the API server is running.';
+            console.error('⚠️ Backend returned 503 - Server may be down or overloaded');
+          } else if (response.status === 502) {
+            errorMessage = 'Bad gateway - Backend server may be restarting or misconfigured.';
+          } else if (response.status === 504) {
+            errorMessage = 'Gateway timeout - Backend server took too long to respond.';
+          }
+          
           const apiError = new ApiError(
-            errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+            errorMessage,
             response.status,
             errorData,
             response
@@ -347,7 +359,11 @@ class ApiClient {
             continue;
           }
           
-          // After all retries, throw the error
+          // After all retries, show user-friendly message and throw
+          if (response.status === 503) {
+            toast.error('Backend server is unavailable. Please contact support or try again later.');
+          }
+          
           throw apiError;
         }
 
@@ -390,11 +406,29 @@ class ApiClient {
             throw error;
           }
 
+          // Check for CORS errors (these are non-retryable configuration issues)
+          // Note: CORS errors appear as "Failed to fetch" but the browser console will show the actual CORS error
+          if (error.message.includes('CORS') || error.message.includes('Access-Control-Allow-Origin')) {
+            console.error('❌ CORS Error detected: Backend is not configured to allow requests from this origin.');
+            console.error('   Frontend origin:', typeof window !== 'undefined' ? window.location.origin : 'unknown');
+            console.error('   API URL:', this.baseURL);
+            console.error('   Backend must add CORS headers to allow:', typeof window !== 'undefined' ? window.location.origin : 'frontend origin');
+            if (attempt === 0) {
+              toast.error('CORS error: Backend server needs to allow requests from this domain.');
+            }
+            // Don't retry CORS errors - they won't resolve by retrying
+            throw new ApiError(
+              'CORS configuration error: Backend must allow requests from ' + (typeof window !== 'undefined' ? window.location.origin : 'frontend'),
+              0,
+              { corsError: true, frontendOrigin: typeof window !== 'undefined' ? window.location.origin : 'unknown', apiUrl: this.baseURL }
+            );
+          }
+
           // Check for network errors
           if (error.message === 'Failed to fetch' || error.message.includes('NetworkError')) {
             if (attempt === maxRetries) {
-              toast.error('Unable to connect to server. Please check if the backend is running.');
-              throw new Error('Server connection failed - please ensure backend is running on port 3000');
+              toast.error('Unable to connect to server. The backend may be down or unreachable.');
+              throw new Error('Server connection failed - please ensure backend server is running and accessible');
             }
             // Continue to retry for network errors
           }
@@ -404,7 +438,7 @@ class ApiClient {
         if (attempt === maxRetries) {
           if (error instanceof Error) {
             if (error.message === 'Failed to fetch') {
-              toast.error('Network error. The server may be down or overloaded. Please try again.');
+              toast.error('Network error. The server may be down or unreachable. Please try again later.');
             } else {
               toast.error(error.message || 'Request failed');
             }
