@@ -308,9 +308,9 @@ export default function EmployeeDashboard() {
               setSelectedShift('Morning');
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('❌ Failed to load shifts in employee dashboard:', error);
-          console.error('❌ Error response:', error.response);
+          console.error('❌ Error response:', (error as any)?.response);
           
           // Set default shifts if factory data fails to load
           const defaultShifts = [
@@ -335,7 +335,7 @@ export default function EmployeeDashboard() {
               setAttendance(null);
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           // Failed to load attendance - this is okay if employee hasn't checked in yet
           console.debug('No attendance record found for today (this is normal if not checked in)');
           setAttendance(null);
@@ -551,8 +551,14 @@ export default function EmployeeDashboard() {
     }
   };
 
-  // Calculate total work hours from today's completed work entries only
+  // Calculate total work hours - prioritize attendance.workHours from backend, then work entries, then check-in/check-out times
   const calculateTotalWorkHours = useMemo(() => {
+    // First, check if attendance has workHours calculated by backend (after check-out)
+    if (attendance?.workHours !== undefined && attendance.workHours !== null) {
+      return Math.round(Number(attendance.workHours) * 100) / 100;
+    }
+    
+    // Second, calculate from work entries
     let totalHours = 0;
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
@@ -576,8 +582,31 @@ export default function EmployeeDashboard() {
       }
     });
 
-    return Math.round(totalHours * 100) / 100; // Round to 2 decimal places
-  }, [allWorkEntries]);
+    // If we have work hours from entries, use that
+    if (totalHours > 0) {
+      return Math.round(totalHours * 100) / 100;
+    }
+    
+    // Third, fallback to calculating from check-in/check-out times if available
+    if (attendance?.checkIn?.time && attendance?.checkOut?.time) {
+      const checkInTime = new Date(attendance.checkIn.time);
+      const checkOutTime = new Date(attendance.checkOut.time);
+      const duration = checkOutTime.getTime() - checkInTime.getTime();
+      const hours = duration / (1000 * 60 * 60);
+      return Math.round(hours * 100) / 100;
+    }
+    
+    // If check-in exists but no check-out yet, calculate from check-in to now
+    if (attendance?.checkIn?.time && !attendance?.checkOut?.time) {
+      const checkInTime = new Date(attendance.checkIn.time);
+      const now = new Date();
+      const duration = now.getTime() - checkInTime.getTime();
+      const hours = duration / (1000 * 60 * 60);
+      return Math.round(hours * 100) / 100;
+    }
+
+    return 0;
+  }, [attendance, allWorkEntries]);
 
   // Calculate total achieved and rejected quantities for the day
   const calculateTotalProduction = useMemo(() => {
@@ -1025,23 +1054,66 @@ export default function EmployeeDashboard() {
                   longitude: position.coords.longitude
                 };
 
-                await attendanceService.checkOut(attendanceForCheckout._id, location);
-                setAttendance(null);
+                const checkoutResponse = await attendanceService.checkOut(attendanceForCheckout._id, location);
                 
-                toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
+                // Update attendance state with the response data which includes workHours
+                if (checkoutResponse?.data) {
+                  const updatedAttendance = checkoutResponse.data;
+                  setAttendance(updatedAttendance);
+                  // Use workHours from backend response if available
+                  const workHoursFromBackend = (updatedAttendance as any)?.workHours || totalHours;
+                  toast.success(`Production submitted and checked out successfully! Work hours: ${workHoursFromBackend.toFixed(2)}h`);
+                } else {
+                  // Fallback: reload attendance data to get updated workHours
+                  try {
+                    const userId = user?._id || user?.id;
+                    if (userId) {
+                      const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+                      if (attendanceResponse.data && typeof attendanceResponse.data === 'object' && '_id' in attendanceResponse.data) {
+                        setAttendance(attendanceResponse.data);
+                      }
+                    }
+                  } catch (refreshError) {
+                    console.warn('Failed to refresh attendance after check-out', refreshError);
+                  }
+                  toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
+                }
               } catch (checkoutError: any) {
                 console.error('Checkout error:', checkoutError);
                 const errorMessage = checkoutError?.responseData?.error || checkoutError?.message || 'Unknown error';
                 
-                // If already checked out, that's fine - just show success
+                // If already checked out, refresh attendance and show success
                 if (checkoutError?.status === 409 || errorMessage.includes('already checked out')) {
+                  // Try to refresh attendance to get updated workHours
+                  try {
+                    const userId = user?._id || user?.id;
+                    if (userId) {
+                      const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+                      if (attendanceResponse.data && typeof attendanceResponse.data === 'object' && '_id' in attendanceResponse.data) {
+                        setAttendance(attendanceResponse.data);
+                      }
+                    }
+                  } catch (refreshError) {
+                    console.warn('Failed to refresh attendance', refreshError);
+                  }
                   toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h (Already checked out)`);
                 } else {
                   toast.warning(`Production submitted successfully. However, checkout failed: ${errorMessage}`);
                 }
               }
             } else {
-              // Already checked out, just show success
+              // Already checked out, refresh attendance to get workHours
+              try {
+                const userId = user?._id || user?.id;
+                if (userId) {
+                  const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+                  if (attendanceResponse.data && typeof attendanceResponse.data === 'object' && '_id' in attendanceResponse.data) {
+                    setAttendance(attendanceResponse.data);
+                  }
+                }
+              } catch (refreshError) {
+                console.warn('Failed to refresh attendance', refreshError);
+              }
               toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h`);
             }
           } else {
@@ -1159,23 +1231,66 @@ export default function EmployeeDashboard() {
               longitude: position.coords.longitude
             };
 
-            await attendanceService.checkOut(attendanceForCheckout._id, location);
-            setAttendance(null);
+            const checkoutResponse = await attendanceService.checkOut(attendanceForCheckout._id, location);
             
-            toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
+            // Update attendance state with the response data which includes workHours
+            if (checkoutResponse?.data) {
+              const updatedAttendance = checkoutResponse.data;
+              setAttendance(updatedAttendance);
+              // Use workHours from backend response if available
+              const workHoursFromBackend = (updatedAttendance as any)?.workHours || totalHours;
+              toast.success(`Production submitted and checked out successfully! Work hours: ${workHoursFromBackend.toFixed(2)}h`);
+            } else {
+              // Fallback: reload attendance data to get updated workHours
+              try {
+                const userId = user?._id || user?.id;
+                if (userId) {
+                  const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+                  if (attendanceResponse.data && typeof attendanceResponse.data === 'object' && '_id' in attendanceResponse.data) {
+                    setAttendance(attendanceResponse.data);
+                  }
+                }
+              } catch (refreshError) {
+                console.warn('Failed to refresh attendance after check-out', refreshError);
+              }
+              toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
+            }
           } catch (checkoutError: any) {
             console.error('Checkout error:', checkoutError);
             const errorMessage = checkoutError?.responseData?.error || checkoutError?.message || 'Unknown error';
             
-            // If already checked out, that's fine - just show success
+            // If already checked out, refresh attendance and show success
             if (checkoutError?.status === 409 || errorMessage.includes('already checked out')) {
+              // Try to refresh attendance to get updated workHours
+              try {
+                const userId = user?._id || user?.id;
+                if (userId) {
+                  const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+                  if (attendanceResponse.data && typeof attendanceResponse.data === 'object' && '_id' in attendanceResponse.data) {
+                    setAttendance(attendanceResponse.data);
+                  }
+                }
+              } catch (refreshError) {
+                console.warn('Failed to refresh attendance', refreshError);
+              }
               toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h (Already checked out)`);
             } else {
               toast.warning(`Production submitted successfully. However, checkout failed: ${errorMessage}`);
             }
           }
         } else {
-          // Already checked out, just show success
+          // Already checked out, refresh attendance to get workHours
+          try {
+            const userId = user?._id || user?.id;
+            if (userId) {
+              const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+              if (attendanceResponse.data && typeof attendanceResponse.data === 'object' && '_id' in attendanceResponse.data) {
+                setAttendance(attendanceResponse.data);
+              }
+            }
+          } catch (refreshError) {
+            console.warn('Failed to refresh attendance', refreshError);
+          }
           toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h`);
         }
       } else {

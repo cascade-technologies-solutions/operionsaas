@@ -363,38 +363,31 @@ class ApiClient {
           throw new Error('No response received from server');
         }
 
-        // Handle rate limiting
+        // Handle rate limiting - immediately throw without retrying to prevent request multiplication
         if (response.status === 429) {
           const retryAfter = response.headers.get('Retry-After');
           const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
           const rateLimitReset = response.headers.get('X-RateLimit-Reset');
           
-          // Calculate delay - use Retry-After header if available, otherwise exponential backoff
-          const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(5000 * Math.pow(2, attempt), 30000);
-          
+          // Show user-friendly message on rate limit hit
+          const resetTime = rateLimitReset ? new Date(parseInt(rateLimitReset)).toLocaleTimeString() : 'soon';
           if (attempt === 0) {
-            // Show user-friendly message on first rate limit hit
-            const resetTime = rateLimitReset ? new Date(parseInt(rateLimitReset)).toLocaleTimeString() : 'soon';
             toast.error(`Too many requests. Please wait before trying again. (Resets at ${resetTime})`);
           }
           
-          // Don't retry more than 2 times for rate limits to avoid making it worse
-          if (attempt >= 2) {
-            const apiError = new ApiError(
-              'Rate limit exceeded. Please wait before making more requests.',
-              429,
-              { 
-                rateLimitError: true,
-                retryAfter: retryAfter ? parseInt(retryAfter) : undefined,
-                rateLimitRemaining: rateLimitRemaining ? parseInt(rateLimitRemaining) : undefined,
-                rateLimitReset: rateLimitReset ? parseInt(rateLimitReset) : undefined
-              }
-            );
-            throw apiError;
-          }
-          
-          await this.delay(delay);
-          continue;
+          // Immediately throw - do not retry 429 errors to avoid making the problem worse
+          const apiError = new ApiError(
+            'Rate limit exceeded. Please wait before making more requests.',
+            429,
+            { 
+              rateLimitError: true,
+              retryAfter: retryAfter ? parseInt(retryAfter) : undefined,
+              rateLimitRemaining: rateLimitRemaining ? parseInt(rateLimitRemaining) : undefined,
+              rateLimitReset: rateLimitReset ? parseInt(rateLimitReset) : undefined
+            },
+            response
+          );
+          throw apiError;
         }
 
 

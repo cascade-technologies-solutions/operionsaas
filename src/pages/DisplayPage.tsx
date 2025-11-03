@@ -28,8 +28,17 @@ export default function DisplayPage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [pollIntervalMs, setPollIntervalMs] = useState(30000); // Start at 30s
 
   const loadData = async () => {
+    // Prevent concurrent requests
+    if (isLoadingData) {
+      return;
+    }
+    
+    setIsLoadingData(true);
     try {
       setLoading(true);
       setError(null);
@@ -39,6 +48,8 @@ export default function DisplayPage() {
       if (response) {
         setData(response);
         setLastUpdated(new Date());
+        // Reset polling interval to default on successful request
+        setPollIntervalMs(30000);
       } else {
         setData({
           products: [],
@@ -79,8 +90,19 @@ export default function DisplayPage() {
         status: error?.response?.status
       });
       
-      setError(error?.response?.data?.message || error?.message || 'Failed to load data');
-      toast.error('Failed to load data');
+      // Check if it's a rate limit error (429)
+      const isRateLimitError = error?.status === 429 || error?.response?.status === 429;
+      
+      if (isRateLimitError) {
+        // Exponential backoff: double the interval (max 5 minutes)
+        setPollIntervalMs(prev => Math.min(prev * 2, 300000)); // Max 5 minutes
+        const retryAfter = error?.responseData?.retryAfter || error?.retryAfter;
+        const resetTime = retryAfter ? ` (Retry after ${retryAfter}s)` : '';
+        toast.error(`Rate limit exceeded. Polling interval increased.${resetTime}`);
+      } else {
+        setError(error?.response?.data?.message || error?.message || 'Failed to load data');
+        toast.error('Failed to load data');
+      }
       
       // Set empty data to prevent white screen
       setData({
@@ -115,10 +137,13 @@ export default function DisplayPage() {
       });
     } finally {
       setLoading(false);
+      setIsLoadingData(false);
     }
   };
 
   useEffect(() => {
+    let currentPollingInterval: NodeJS.Timeout | null = null;
+
     // Initial data load
     loadData();
 
@@ -127,14 +152,20 @@ export default function DisplayPage() {
       try {
         await wsService.connect();
         setWsConnected(true);
+        // Clear any existing polling interval when WebSocket connects
+        if (currentPollingInterval) {
+          clearInterval(currentPollingInterval);
+          currentPollingInterval = null;
+          setPollingInterval(null);
+        }
       } catch (error) {
         console.error('❌ WebSocket connection failed:', error);
         setWsConnected(false);
-        // Fallback to polling if WebSocket fails
-        const interval = setInterval(() => {
+        // Fallback to polling if WebSocket fails - use current interval (with exponential backoff)
+        currentPollingInterval = setInterval(() => {
           loadData();
-        }, 5000);
-        return () => clearInterval(interval);
+        }, pollIntervalMs);
+        setPollingInterval(currentPollingInterval);
       }
     };
 
@@ -148,8 +179,13 @@ export default function DisplayPage() {
     return () => {
       unsubscribe();
       wsService.disconnect();
+      // Clean up polling interval
+      if (currentPollingInterval) {
+        clearInterval(currentPollingInterval);
+      }
+      setPollingInterval(null);
     };
-  }, []);
+  }, [pollIntervalMs]); // Recreate interval when poll interval changes
 
   const getEfficiencyColor = (efficiency: number) => {
     if (efficiency >= 90) return 'text-green-400';

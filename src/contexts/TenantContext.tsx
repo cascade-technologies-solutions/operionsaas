@@ -28,11 +28,13 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   const { user } = useAuthStore();
   const [currentFactory, setCurrentFactory] = useState<Factory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastLoadedFactoryId, setLastLoadedFactoryId] = useState<string | null>(null);
 
   const loadFactory = useCallback(async (factoryId: string) => {
     if (!factoryId) return;
     
     setIsLoading(true);
+    setLastLoadedFactoryId(factoryId);
     try {
       const response = await factoryService.getFactory(factoryId);
       
@@ -57,6 +59,8 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('❌ Failed to load factory:', error);
       setCurrentFactory(null);
+      // Reset lastLoadedFactoryId on error so it can retry if needed
+      setLastLoadedFactoryId(null);
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +70,7 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
     // For super_admin, we don't need to load factory data
     if (user?.role === 'super_admin') {
       setCurrentFactory(null);
+      setLastLoadedFactoryId(null);
       return;
     }
     
@@ -76,14 +81,20 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
         : user.factoryId._id || user.factoryId.id;
       
       if (factoryId) {
-        loadFactory(factoryId);
+        // Only load if factoryId actually changed (not already loaded) and not currently loading
+        const currentFactoryId = currentFactory?._id || currentFactory?.id;
+        if (factoryId !== currentFactoryId && factoryId !== lastLoadedFactoryId && !isLoading) {
+          loadFactory(factoryId);
+        }
       } else {
         setCurrentFactory(null);
+        setLastLoadedFactoryId(null);
       }
     } else {
       setCurrentFactory(null);
+      setLastLoadedFactoryId(null);
     }
-  }, [user?.factoryId, user?.role, loadFactory]);
+  }, [user?.factoryId, user?.role, currentFactory, lastLoadedFactoryId, isLoading, loadFactory]);
 
   const factoryId = currentFactory?._id || currentFactory?.id ||
     (typeof user?.factoryId === 'string' 

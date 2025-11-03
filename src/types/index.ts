@@ -127,6 +127,7 @@ export interface Attendance {
   processId: string;
   target: number;
   status?: 'present' | 'absent' | 'half-day'; // Keep for backward compatibility
+  workHours?: number; // Calculated work hours from check-in to check-out
   createdAt: Date;
   updatedAt?: Date;
 }

@@ -344,13 +344,39 @@ const WorkEntry: React.FC = () => {
                               <div>
                   <Label className="text-sm font-medium">Process</Label>
                   <p className="text-sm text-muted-foreground">
-                    {(currentWorkEntry.processId as Process)?.name || 'N/A'}
+                    {(() => {
+                      const processId = currentWorkEntry.processId;
+                      if (!processId) return 'N/A';
+                      // Handle both string ID and populated object
+                      if (typeof processId === 'string') {
+                        return 'N/A'; // Would need a process lookup function here
+                      }
+                      // Handle populated object with name property
+                      if (typeof processId === 'object' && 'name' in processId) {
+                        return String(processId.name || 'N/A');
+                      }
+                      // Handle Process type object
+                      if ((processId as Process)?.name) {
+                        return String((processId as Process).name);
+                      }
+                      return 'N/A';
+                    })()}
                   </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Machine</Label>
                   <p className="text-sm text-muted-foreground">
-                    {currentWorkEntry.machineId ? getMachineNameById(currentWorkEntry.machineId) : 'Not selected'}
+                    {(() => {
+                      const machineId = currentWorkEntry.machineId;
+                      if (!machineId) return 'Not selected';
+                      // Handle both string ID and populated object
+                      const machineIdString = typeof machineId === 'string' 
+                        ? machineId 
+                        : (typeof machineId === 'object' && '_id' in machineId)
+                        ? String(machineId._id)
+                        : String(machineId);
+                      return getMachineNameById(machineIdString);
+                    })()}
                   </p>
                 </div>
               <div>
