@@ -160,7 +160,7 @@ const Landing = () => {
       {/* Footer */}
       <footer className="border-t py-8 mt-16">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>&copy; 2024 Factory Management System. All rights reserved.</p>
+          <p>&copy; 2025 Factory Management System. All rights reserved.</p>
         </div>
       </footer>
     </div>
