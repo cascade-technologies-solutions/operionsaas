@@ -976,7 +976,7 @@ export default function EmployeeDashboard() {
             photo: formData.photo || 'default_photo_placeholder',
             shiftType: formData.shiftType,
             machineId: formData.machineId,
-            location: attendance?.checkIn?.location || null
+            location: attendance?.checkIn?.location || undefined
           };
           
           const response = await workEntryService.createDirectWorkEntry(directWorkEntryData);
@@ -987,37 +987,69 @@ export default function EmployeeDashboard() {
             setAllWorkEntries(prev => [newWorkEntry, ...prev]);
           }
           
-          // Calculate work hours between check-in and checkout for first process stage
-          if (attendance && attendance.checkIn && attendance.checkIn.time) {
-            const checkInTime = new Date(attendance.checkIn.time);
+          // Get attendance for check-out - use existing or fetch today's attendance
+          let attendanceForCheckout = attendance;
+          
+          if (!attendanceForCheckout || !attendanceForCheckout._id) {
+            // Try to fetch today's attendance if not available
+            try {
+              const userId = user?._id || user?.id;
+              if (userId) {
+                const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+                attendanceForCheckout = attendanceResponse.data;
+              }
+            } catch (attendanceError) {
+              console.warn('Could not fetch today\'s attendance for check-out', attendanceError);
+            }
+          }
+          
+          // Perform checkout if attendance exists and has check-in
+          if (attendanceForCheckout && attendanceForCheckout._id && attendanceForCheckout.checkIn?.time) {
+            const checkInTime = new Date(attendanceForCheckout.checkIn.time);
             const checkOutTime = new Date();
             const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
             
-            // Perform checkout with location after work entry is submitted
-            try {
-              const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                  enableHighAccuracy: true,
-                  timeout: 10000,
-                  maximumAge: 0
+            // Only check-out if not already checked out
+            if (!attendanceForCheckout.checkOut?.time) {
+              try {
+                const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                  navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                  });
                 });
-              });
 
-              const location = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-              };
+                const location = {
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude
+                };
 
-              await attendanceService.checkOut(attendance._id, location);
-              setAttendance(null);
-              
-              toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
-            } catch (checkoutError: any) {
-              console.error('Checkout error:', checkoutError);
-              toast.warning('Production submitted successfully. However, checkout failed. Please contact supervisor.');
+                await attendanceService.checkOut(attendanceForCheckout._id, location);
+                setAttendance(null);
+                
+                toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
+              } catch (checkoutError: any) {
+                console.error('Checkout error:', checkoutError);
+                const errorMessage = checkoutError?.responseData?.error || checkoutError?.message || 'Unknown error';
+                
+                // If already checked out, that's fine - just show success
+                if (checkoutError?.status === 409 || errorMessage.includes('already checked out')) {
+                  toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h (Already checked out)`);
+                } else {
+                  toast.warning(`Production submitted successfully. However, checkout failed: ${errorMessage}`);
+                }
+              }
+            } else {
+              // Already checked out, just show success
+              toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h`);
             }
           } else {
+            // No attendance or no check-in - work entry submitted but can't check-out
             toast.success('Production submitted successfully!');
+            if (!attendanceForCheckout) {
+              console.warn('No attendance record found for check-out');
+            }
           }
           
           // Reset form and reload data for full sync
@@ -1048,7 +1080,7 @@ export default function EmployeeDashboard() {
         processId: formData.processId,
         productId: formData.productId,
         targetQuantity: formData.achieved + formData.rejected,
-        location: attendance?.checkIn?.location || null,
+        location: attendance?.checkIn?.location || undefined,
         machineId: formData.machineId,
         machineCode: selectedMachineData.name,
         shiftType: formData.shiftType
@@ -1089,37 +1121,69 @@ export default function EmployeeDashboard() {
         });
       }
       
-      // Calculate work hours between check-in and checkout
-      if (attendance && attendance.checkIn && attendance.checkIn.time) {
-        const checkInTime = new Date(attendance.checkIn.time);
+      // Get attendance for check-out - use existing or fetch today's attendance
+      let attendanceForCheckout = attendance;
+      
+      if (!attendanceForCheckout || !attendanceForCheckout._id) {
+        // Try to fetch today's attendance if not available
+        try {
+          const userId = user?._id || user?.id;
+          if (userId) {
+            const attendanceResponse = await attendanceService.getTodayAttendance(userId.toString());
+            attendanceForCheckout = attendanceResponse.data;
+          }
+        } catch (attendanceError) {
+          console.warn('Could not fetch today\'s attendance for check-out', attendanceError);
+        }
+      }
+      
+      // Perform checkout if attendance exists and has check-in (only for last stage typically)
+      if (attendanceForCheckout && attendanceForCheckout._id && attendanceForCheckout.checkIn?.time) {
+        const checkInTime = new Date(attendanceForCheckout.checkIn.time);
         const checkOutTime = new Date();
         const totalHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
         
-        // Perform checkout with location after work entry is submitted
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 0
+        // Only check-out if not already checked out
+        if (!attendanceForCheckout.checkOut?.time && attendanceForCheckout._id) {
+          try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+              });
             });
-          });
 
-          const location = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          };
+            const location = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude
+            };
 
-          await attendanceService.checkOut(attendance._id, location);
-          setAttendance(null);
-          
-          toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
-        } catch (checkoutError: any) {
-          console.error('Checkout error:', checkoutError);
-          toast.warning('Production submitted successfully. However, checkout failed. Please contact supervisor.');
+            await attendanceService.checkOut(attendanceForCheckout._id, location);
+            setAttendance(null);
+            
+            toast.success(`Production submitted and checked out successfully! Work hours: ${totalHours.toFixed(2)}h`);
+          } catch (checkoutError: any) {
+            console.error('Checkout error:', checkoutError);
+            const errorMessage = checkoutError?.responseData?.error || checkoutError?.message || 'Unknown error';
+            
+            // If already checked out, that's fine - just show success
+            if (checkoutError?.status === 409 || errorMessage.includes('already checked out')) {
+              toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h (Already checked out)`);
+            } else {
+              toast.warning(`Production submitted successfully. However, checkout failed: ${errorMessage}`);
+            }
+          }
+        } else {
+          // Already checked out, just show success
+          toast.success(`Production submitted successfully! Work hours: ${totalHours.toFixed(2)}h`);
         }
       } else {
+        // No attendance or no check-in - work entry submitted but can't check-out
         toast.success('Production data submitted successfully');
+        if (!attendanceForCheckout) {
+          console.warn('No attendance record found for check-out');
+        }
       }
       
       // Reset form and reload data
