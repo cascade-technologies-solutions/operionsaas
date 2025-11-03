@@ -110,7 +110,7 @@ export const ProcessForm: React.FC<ProcessFormProps> = ({
                     </FormControl>
                     <SelectContent>
                       {products?.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
+                        <SelectItem key={product.id} value={String(product.id)}>
                           {product.name} ({product.code})
                         </SelectItem>
                       ))}

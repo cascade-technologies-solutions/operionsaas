@@ -202,7 +202,7 @@ const Processes = () => {
               <div>
                 <Label htmlFor="product">Product</Label>
                 <Select
-                  value={formData.productId}
+                  value={typeof formData.productId === 'string' ? formData.productId : (formData.productId ? String(formData.productId) : '')}
                   onValueChange={(value) => setFormData({ ...formData, productId: value })}
                 >
                   <SelectTrigger>
@@ -210,7 +210,7 @@ const Processes = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
+                      <SelectItem key={product.id} value={String(product.id)}>
                         {product.name}
                       </SelectItem>
                     ))}

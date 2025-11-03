@@ -327,7 +327,7 @@ export const UserForm: React.FC<UserFormProps> = ({
                         </SelectTrigger>
                         <SelectContent>
                           {processes.map((process) => (
-                            <SelectItem key={process._id || process.id} value={process._id || process.id}>
+                            <SelectItem key={process._id || process.id} value={String(process._id || process.id)}>
                               {process.name}
                             </SelectItem>
                           ))}

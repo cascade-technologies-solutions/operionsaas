@@ -838,7 +838,7 @@ const Products = () => {
                 <div>
                   <Label htmlFor="workProcess">Select Process Stage</Label>
                   <Select 
-                    value={selectedProcess} 
+                    value={typeof selectedProcess === 'string' ? selectedProcess : (selectedProcess ? String(selectedProcess) : '')} 
                     onValueChange={setSelectedProcess}
                     disabled={isWorking}
                   >
@@ -847,7 +847,7 @@ const Products = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {processes.map((process) => (
-                        <SelectItem key={process._id} value={process._id}>
+                        <SelectItem key={process._id} value={String(process._id)}>
                           {process.name}
                         </SelectItem>
                       ))}
@@ -860,7 +860,7 @@ const Products = () => {
                 <div>
                   <Label htmlFor="workMachine">Select Machine</Label>
                   <Select 
-                    value={selectedMachine} 
+                    value={typeof selectedMachine === 'string' ? selectedMachine : (selectedMachine ? String(selectedMachine) : '')} 
                     onValueChange={setSelectedMachine}
                     disabled={isWorking}
                   >
@@ -869,7 +869,7 @@ const Products = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {getAvailableMachines().map((machine) => (
-                        <SelectItem key={machine._id} value={machine._id}>
+                        <SelectItem key={machine._id} value={String(machine._id)}>
                           {machine.name}
                         </SelectItem>
                       ))}
