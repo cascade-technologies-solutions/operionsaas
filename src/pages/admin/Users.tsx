@@ -789,6 +789,7 @@ const UserManagement = () => {
                 </Table>
               </div>
             </div>
+            </div>
           </Card>
         </TabsContent>
 
@@ -844,6 +845,7 @@ const UserManagement = () => {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    </div>
                     </div>
                   </Card>
                   ))}
@@ -924,6 +926,7 @@ const UserManagement = () => {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                      </div>
                       </div>
                     </Card>
                   );
