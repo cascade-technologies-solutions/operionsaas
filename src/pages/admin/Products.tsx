@@ -22,6 +22,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Package, Settings, Layers, Clock, Target, ArrowUp, ArrowDown, GripVertical, Eye } from 'lucide-react';
 import { productService, processService, machineService } from '@/services/api';
+import { apiClient } from '@/services/api/client';
 import { Product, Process } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
@@ -104,15 +105,25 @@ const Products = () => {
     try {
       const [productData, processData] = await Promise.all([
         productService.getProducts(),
-        processService.getProcesses(),
+        // Fetch all processes with a high limit to get all records
+        apiClient.get('/processes?limit=1000'),
       ]);
       
       // Handle nested data structure from backend
       const productsArray = (productData as any).products || (productData as any).data?.products || (productData as any).data || [];
-      const processesArray = (processData as any).processes || (processData as any).data?.processes || (processData as any).data || [];
+      
+      // Extract processes from the API response - ensures we get all processes from the processes collection
+      const processResponse = processData.data || processData;
+      const processesArray = processResponse?.data?.processes || processResponse?.processes || processResponse?.data || [];
+      
+      // Filter to ensure we only have processes (not process stages)
+      // Processes should have factoryId, name, etc. from the Process model
+      const validProcesses = Array.isArray(processesArray) ? processesArray.filter((p: any) => 
+        p && p.name && (p._id || p.id)
+      ) : [];
       
       setProducts(productsArray);
-      setProcesses(processesArray);
+      setProcesses(validProcesses);
       
     } catch (error) {
       console.error('❌ Failed to load data:', error);
