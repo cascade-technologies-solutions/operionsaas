@@ -645,12 +645,6 @@ export default function EmployeeDashboard() {
         longitude: position.coords.longitude
       };
 
-      // Validate required fields before sending
-      if (!selectedProcess) {
-        toast.error('Please select a process before checking in');
-        return;
-      }
-
       // Ensure user ID is available
       const userId = user?._id || user?.id;
       if (!userId) {
@@ -658,19 +652,64 @@ export default function EmployeeDashboard() {
         return;
       }
 
-      const attendanceData = await attendanceService.checkIn({
+      // Validate all required fields
+      if (!selectedProcess) {
+        toast.error('Please select a process before checking in');
+        return;
+      }
+
+      if (!selectedShift) {
+        toast.error('Please select a shift before checking in');
+        return;
+      }
+
+      // Validate location coordinates
+      if (isNaN(location.latitude) || isNaN(location.longitude)) {
+        toast.error('Invalid location coordinates. Please enable location services.');
+        return;
+      }
+
+      // Normalize shift type - handle case variations
+      let normalizedShiftType: 'morning' | 'evening' | 'night' = 'morning';
+      const shiftLower = selectedShift.toLowerCase();
+      if (shiftLower.includes('morning') || shiftLower === 'morning') {
+        normalizedShiftType = 'morning';
+      } else if (shiftLower.includes('evening') || shiftLower === 'evening') {
+        normalizedShiftType = 'evening';
+      } else if (shiftLower.includes('night') || shiftLower === 'night') {
+        normalizedShiftType = 'night';
+      } else {
+        toast.error('Invalid shift type. Please select a valid shift.');
+        return;
+      }
+
+      // Prepare check-in data
+      const checkInData = {
         employeeId: userId,
         processId: selectedProcess,
-        location: location,
-        shiftType: selectedShift as 'morning' | 'evening' | 'night',
+        location: {
+          latitude: Number(location.latitude),
+          longitude: Number(location.longitude)
+        },
+        shiftType: normalizedShiftType,
         target: 0
-      });
+      };
+
+      console.log('Check-in data being sent:', checkInData);
+
+      const attendanceData = await attendanceService.checkIn(checkInData);
       setAttendance(attendanceData.data);
       
       toast.success('Checked in successfully');
     } catch (error: any) {
       console.error('Check-in error:', error);
-      toast.error(error.message || 'Failed to check in');
+      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to check in';
+      console.error('Full error details:', {
+        message: errorMessage,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
