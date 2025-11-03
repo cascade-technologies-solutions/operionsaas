@@ -29,6 +29,58 @@ import { workEntryService } from '@/services/api/workEntry.service';
 import { WorkEntry } from '@/types';
 import { format } from 'date-fns';
 
+/**
+ * Safely extracts a string value from a potentially nested object structure.
+ * Handles cases where the value might be:
+ * - null/undefined
+ * - a string
+ * - an object with a `name` property (which might also be a string or object)
+ * - an object with `_id` and `name` properties
+ */
+const getSafeStringValue = (value: any): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  
+  // If it's already a string, return it
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  // If it's an object, try to extract the name property
+  if (typeof value === 'object') {
+    // If the object has a `name` property
+    if ('name' in value && value.name !== null && value.name !== undefined) {
+      const nameValue = value.name;
+      // If name is a string, return it
+      if (typeof nameValue === 'string') {
+        return nameValue;
+      }
+      // If name is also an object, recursively extract
+      if (typeof nameValue === 'object' && nameValue !== null) {
+        return getSafeStringValue(nameValue);
+      }
+    }
+    // Fallback: try to get _id or convert to string
+    if ('_id' in value && value._id !== null && value._id !== undefined) {
+      return String(value._id);
+    }
+    // Last resort: convert to string (but avoid [object Object])
+    try {
+      const stringValue = String(value);
+      if (stringValue === '[object Object]') {
+        return '';
+      }
+      return stringValue;
+    } catch {
+      return '';
+    }
+  }
+  
+  // For any other type, convert to string
+  return String(value);
+};
+
 export default function WorkValidation() {
   const [entries, setEntries] = useState<WorkEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,8 +110,8 @@ export default function WorkValidation() {
 
   const filteredEntries = entries.filter(entry => {
     const employeeName = `${entry.employeeId?.profile?.firstName || ''} ${entry.employeeId?.profile?.lastName || ''}`.toLowerCase();
-    const processName = entry.processId?.name?.toLowerCase() || '';
-    const productName = entry.productId?.name?.toLowerCase() || '';
+    const processName = getSafeStringValue(entry.processId).toLowerCase();
+    const productName = getSafeStringValue(entry.productId).toLowerCase();
     
     const matchesSearch = 
       employeeName.includes(searchTerm.toLowerCase()) ||
@@ -230,7 +282,7 @@ export default function WorkValidation() {
                             {entry.employeeId?.profile?.firstName} {entry.employeeId?.profile?.lastName}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            {entry.processId?.name} • {entry.productId?.name} • Size: {entry.sizeCode}
+                            {getSafeStringValue(entry.processId) || 'N/A'} • {getSafeStringValue(entry.productId) || 'N/A'} • Size: {entry.sizeCode || 'N/A'}
                           </p>
                         </div>
                         <Badge className={getStatusColor(entry.validationStatus)}>

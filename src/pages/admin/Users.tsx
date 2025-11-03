@@ -624,11 +624,31 @@ const UserManagement = () => {
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Assigned Processes</Label>
                     <div className="mt-1 space-y-1">
-                      {viewingUser.assignedProcesses.map((process, index) => (
-                        <Badge key={index} variant="secondary" className="mr-1">
-                          {typeof process === 'string' ? process : process.name}
-                        </Badge>
-                      ))}
+                      {viewingUser.assignedProcesses.map((process, index) => {
+                        // Safely extract process name, handling nested object scenarios
+                        let processName: string;
+                        if (typeof process === 'string') {
+                          processName = process;
+                        } else if (typeof process === 'object' && process !== null) {
+                          // Handle case where process.name might be an object
+                          if (typeof process.name === 'string') {
+                            processName = process.name;
+                          } else if (typeof process.name === 'object' && process.name !== null) {
+                            // If name is also an object, try to extract its name or _id
+                            processName = (process.name as any)?.name || (process.name as any)?._id || 'Unknown Process';
+                          } else {
+                            // Fallback to _id or 'Unknown Process'
+                            processName = (process as any)?._id || 'Unknown Process';
+                          }
+                        } else {
+                          processName = 'Unknown Process';
+                        }
+                        return (
+                          <Badge key={index} variant="secondary" className="mr-1">
+                            {processName}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
