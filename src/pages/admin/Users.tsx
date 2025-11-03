@@ -289,11 +289,19 @@ const UserManagement = () => {
   };
 
   const handleResetDevice = async (userId: string) => {
+    if (!userId) {
+      toast({
+        title: 'Error',
+        description: 'User ID is required',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (confirm('Are you sure you want to reset this user\'s device?')) {
       try {
         await userService.resetDevice(userId);
         setUsers(prev => prev.map(u => 
-          u.id === userId ? { ...u, deviceId: undefined } : u
+          (u._id === userId || u.id === userId) ? { ...u, deviceId: undefined } : u
         ));
         toast({
           title: 'Success',
@@ -701,8 +709,9 @@ const UserManagement = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleResetDevice(user.id)}
+                                  onClick={() => handleResetDevice(user._id || user.id || '')}
                                   title="Reset Device"
+                                  disabled={!user._id && !user.id}
                                 >
                                   <RotateCcw className="h-4 w-4" />
                                 </Button>
@@ -710,7 +719,7 @@ const UserManagement = () => {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => handleDelete(user.id)}
+                                onClick={() => handleDelete(user._id || user.id || '')}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -797,13 +806,14 @@ const UserManagement = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleResetDevice(employee.id)}
+                              onClick={() => handleResetDevice(employee._id || employee.id || '')}
                               title="Reset Device"
+                              disabled={!employee._id && !employee.id}
                             >
                               <RotateCcw className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(employee.id)}>
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(employee._id || employee.id || '')}>
                             Delete
                           </Button>
                         </div>

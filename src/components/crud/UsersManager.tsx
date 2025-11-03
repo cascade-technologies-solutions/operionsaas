@@ -47,9 +47,13 @@ export const UsersManager = () => {
   };
 
   const handleResetDevice = async (userId: string) => {
+    if (!userId) {
+      toast.error('User ID is required');
+      return;
+    }
     setIsResetting(userId);
     try {
-      await userService.resetDevice('factory-1', userId);
+      await userService.resetDevice(userId);
       toast.success('Device reset successfully');
     } catch (error) {
       toast.error('Failed to reset device');
@@ -183,8 +187,8 @@ export const UsersManager = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleResetDevice(user.id)}
-                    disabled={isResetting === user.id}
+                    onClick={() => handleResetDevice(user._id || user.id || '')}
+                    disabled={isResetting === (user._id || user.id) || (!user._id && !user.id)}
                     className="flex-1"
                   >
                     <RotateCcw className="h-4 w-4 mr-2" />
