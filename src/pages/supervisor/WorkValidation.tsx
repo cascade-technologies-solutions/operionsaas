@@ -202,7 +202,7 @@ export default function WorkValidation() {
 
   return (
     <Layout>
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -211,15 +211,15 @@ export default function WorkValidation() {
               Review and validate employee work entries
             </p>
           </div>
-          <Button onClick={loadWorkEntries} variant="outline" size="sm" className="w-full sm:w-auto">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button onClick={loadWorkEntries} variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">
+            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
             Refresh
           </Button>
         </div>
 
         {/* Filters */}
-        <Card>
-          <CardContent className="pt-4 sm:pt-6">
+        <Card className="overflow-hidden">
+          <CardContent className="pt-3 sm:pt-4 md:pt-6 px-3 sm:px-4 md:px-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 min-w-0">
                 <Label htmlFor="search" className="text-sm">Search</Label>
@@ -253,7 +253,7 @@ export default function WorkValidation() {
         </Card>
 
         {/* Work Entries List */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4 max-w-full">
           {filteredEntries.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
@@ -271,23 +271,21 @@ export default function WorkValidation() {
             </Card>
           ) : (
             filteredEntries.map((entry) => (
-              <Card key={entry._id} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-4 sm:pt-6">
-                  <div className="flex flex-col lg:flex-row gap-4">
+              <Card key={entry._id} className="hover:shadow-md transition-shadow overflow-hidden">
+                <CardContent className="pt-3 sm:pt-4 md:pt-6 px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
+                  <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
                     {/* Entry Details */}
-                    <div className="flex-1 space-y-3 min-w-0">
+                    <div className="flex-1 space-y-2 sm:space-y-3 min-w-0 max-w-full">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm sm:text-base truncate">
+                        <div className="flex-1 min-w-0 max-w-full">
+                          <h3 className="font-semibold text-xs sm:text-sm md:text-base truncate leading-tight">
                             {entry.employeeId?.profile?.firstName} {entry.employeeId?.profile?.lastName}
                           </h3>
-                          <p className="text-xs sm:text-sm text-muted-foreground break-words">
-                            <span className="truncate block">{getSafeStringValue(entry.processId) || 'N/A'}</span>
-                            <span className="hidden sm:inline"> • </span>
-                            <span className="truncate block sm:inline">{getSafeStringValue(entry.productId) || 'N/A'}</span>
-                            <span className="hidden sm:inline"> • </span>
-                            <span className="truncate block sm:inline">Size: {entry.sizeCode || 'N/A'}</span>
-                          </p>
+                          <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground space-y-0.5 mt-1">
+                            <div className="truncate">{getSafeStringValue(entry.processId) || 'N/A'}</div>
+                            <div className="truncate">{getSafeStringValue(entry.productId) || 'N/A'}</div>
+                            <div className="truncate">Size: {entry.sizeCode || 'N/A'}</div>
+                          </div>
                         </div>
                         <Badge className={`${getStatusColor(entry.validationStatus)} shrink-0 text-xs`}>
                           {getStatusIcon(entry.validationStatus)}
@@ -295,22 +293,22 @@ export default function WorkValidation() {
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
-                        <div className="flex flex-col">
-                          <span className="text-muted-foreground text-xs">Target:</span>
-                          <span className="font-medium mt-0.5">{entry.targetQuantity}</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Target:</span>
+                          <span className="font-medium text-xs sm:text-sm mt-0.5 truncate">{entry.targetQuantity}</span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-muted-foreground text-xs">Achieved:</span>
-                          <span className="font-medium text-green-600 mt-0.5">{entry.achieved}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Achieved:</span>
+                          <span className="font-medium text-green-600 text-xs sm:text-sm mt-0.5 truncate">{entry.achieved}</span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-muted-foreground text-xs">Rejected:</span>
-                          <span className="font-medium text-red-600 mt-0.5">{entry.rejected}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Rejected:</span>
+                          <span className="font-medium text-red-600 text-xs sm:text-sm mt-0.5 truncate">{entry.rejected}</span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-muted-foreground text-xs">Efficiency:</span>
-                          <span className="font-medium mt-0.5">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Efficiency:</span>
+                          <span className="font-medium text-xs sm:text-sm mt-0.5 truncate">
                             {entry.targetQuantity > 0 
                               ? Math.round((entry.achieved / entry.targetQuantity) * 100)
                               : 0
@@ -319,10 +317,10 @@ export default function WorkValidation() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                          <span className="break-words">
+                      <div className="flex flex-col gap-1.5 sm:gap-2 text-[10px] sm:text-xs md:text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          <span className="break-words min-w-0">
                             {entry.createdAt 
                               ? format(new Date(entry.createdAt), 'MMM dd, yyyy HH:mm')
                               : 'Unknown date'
@@ -330,17 +328,17 @@ export default function WorkValidation() {
                           </span>
                         </div>
                         {entry.machineCode && (
-                          <div className="flex items-center gap-1">
-                            <Package className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                            <span className="truncate">{entry.machineCode}</span>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <Package className="h-3 w-3 shrink-0" />
+                            <span className="truncate min-w-0">{entry.machineCode}</span>
                           </div>
                         )}
                       </div>
 
                       {entry.reasonForLessProduction && (
-                        <div className="text-xs sm:text-sm">
-                          <span className="text-muted-foreground">Reason for less production:</span>
-                          <p className="mt-1 text-amber-700 bg-amber-50 p-2 rounded break-words">
+                        <div className="text-[10px] sm:text-xs md:text-sm">
+                          <span className="text-muted-foreground block mb-1">Reason for less production:</span>
+                          <p className="text-amber-700 bg-amber-50 p-2 rounded break-words leading-relaxed">
                             {entry.reasonForLessProduction}
                           </p>
                         </div>
@@ -348,13 +346,13 @@ export default function WorkValidation() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col gap-2 lg:w-48 w-full">
+                    <div className="flex flex-col gap-2 lg:w-48 w-full min-w-0">
                       {entry.photo && (
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm">
-                              <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                              View Photo
+                            <Button variant="outline" size="sm" className="w-full text-[10px] sm:text-xs md:text-sm h-8 sm:h-9">
+                              <ImageIcon className="h-3 w-3 mr-1.5 sm:mr-2 shrink-0" />
+                              <span className="truncate">View Photo</span>
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-[95vw] sm:max-w-2xl" aria-describedby="work-photo-description">
@@ -381,11 +379,11 @@ export default function WorkValidation() {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="w-full text-xs sm:text-sm"
+                              className="w-full text-[10px] sm:text-xs md:text-sm h-8 sm:h-9"
                               onClick={() => setSelectedEntry(entry)}
                             >
-                              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                              Review & Validate
+                              <Eye className="h-3 w-3 mr-1.5 sm:mr-2 shrink-0" />
+                              <span className="truncate">Review & Validate</span>
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-[95vw] sm:max-w-md" aria-describedby="validate-work-description">
@@ -441,11 +439,11 @@ export default function WorkValidation() {
                       )}
 
                       {entry.validationStatus !== 'pending' && (
-                        <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                          <p className="break-words">Validated by: {entry.validatedBy?.profile?.firstName} {entry.validatedBy?.profile?.lastName}</p>
-                          <p>Date: {entry.validatedAt ? format(new Date(entry.validatedAt), 'MMM dd, yyyy HH:mm') : 'Unknown'}</p>
+                        <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground space-y-1 leading-relaxed">
+                          <p className="break-words min-w-0">Validated by: {entry.validatedBy?.profile?.firstName} {entry.validatedBy?.profile?.lastName}</p>
+                          <p className="break-words min-w-0">Date: {entry.validatedAt ? format(new Date(entry.validatedAt), 'MMM dd, yyyy HH:mm') : 'Unknown'}</p>
                           {entry.validationNotes && (
-                            <p className="mt-2 break-words">Notes: {entry.validationNotes}</p>
+                            <p className="mt-2 break-words min-w-0">Notes: {entry.validationNotes}</p>
                           )}
                         </div>
                       )}
