@@ -603,9 +603,9 @@ const Products = () => {
             </div>
 
             {/* Products List */}
-            <div className="space-y-4" key={refreshKey}>
+            <div className="space-y-4">
               {products.map((product) => (
-                <div key={`${product._id}-${refreshKey}`} className="border rounded-lg p-3 sm:p-4">
+                <div key={product._id || product.id} className="border rounded-lg p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                     <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                       <Package className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -738,7 +738,7 @@ const Products = () => {
             </div>
 
             {/* Processes List */}
-            <div className="space-y-4 mt-6" key={`processes-${refreshKey}`}>
+            <div className="space-y-4 mt-6">
               {processes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No processes found. Create your first process above.
@@ -748,7 +748,7 @@ const Products = () => {
                   {processes
                     .filter((process) => process && process._id) // Filter out null/undefined processes
                     .map((process, index) => (
-                      <div key={`${process._id}-${refreshKey}`} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={process._id || process.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
                             {index + 1}
