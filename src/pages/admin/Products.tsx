@@ -21,13 +21,15 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Package, Settings, Layers, Clock, Target, ArrowUp, ArrowDown, GripVertical, Eye } from 'lucide-react';
-import { productService, processService, machineService } from '@/services/api';
+import { productService, machineService } from '@/services/api';
 import { Product, Process } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { SortableProcessList } from '@/components/SortableProcessList';
 import { DeleteConfirmDialog } from '@/components/crud/DeleteConfirmDialog';
-import { useDeleteProduct, useDeleteProcess, useCreateProduct, useCreateProcess } from '@/hooks/useApi';
+import { useDeleteProduct, useDeleteProcess, useCreateProduct, useCreateProcess, useUpdateProduct, useProducts, useProcesses, QUERY_KEYS } from '@/hooks/useApi';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTenant } from '@/contexts/TenantContext';
 
 interface Machine {
   _id: string;
@@ -50,16 +52,18 @@ interface WorkEntry {
 
 const Products = () => {
   const { user } = useAuthStore();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [processes, setProcesses] = useState<Process[]>([]);
+  const { factoryId } = useTenant();
+  const queryClient = useQueryClient();
+  const { data: products = [], isLoading: loading } = useProducts();
+  const { data: processes = [] } = useProcesses();
   const [machines, setMachines] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   
   // React Query hooks for automatic cache invalidation
   const deleteProduct = useDeleteProduct();
   const deleteProcess = useDeleteProcess();
   const createProduct = useCreateProduct();
   const createProcess = useCreateProcess();
+  const updateProduct = useUpdateProduct();
   
   // Dialog states
   const [productDialog, setProductDialog] = useState(false);
@@ -84,7 +88,6 @@ const Products = () => {
     target: '' 
   });
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   
   // Delete dialog states
   const [isDeleteProductOpen, setIsDeleteProductOpen] = useState(false);
@@ -105,46 +108,18 @@ const Products = () => {
   });
   const [isWorking, setIsWorking] = useState(false);
 
+  // Load machines separately (not using React Query for now)
   useEffect(() => {
-    loadData();
+    const loadMachines = async () => {
+      try {
+        const machinesData = await machineService.getMachines();
+        setMachines(machinesData.data || machinesData || []);
+      } catch (error) {
+        console.error('Failed to load machines:', error);
+      }
+    };
+    loadMachines();
   }, []);
-
-  const loadData = async (forceRefresh = false) => {
-    if (forceRefresh) {
-      setRefreshKey(prev => prev + 1);
-    }
-    
-    setLoading(true);
-    try {
-      const [productData, processData] = await Promise.all([
-        productService.getProducts(),
-        processService.getProcesses(),
-      ]);
-      
-      // Handle nested data structure from backend
-      const productsArray = (productData as any).products || (productData as any).data?.products || (productData as any).data || [];
-      const processesArray = (processData as any).processes || (processData as any).data?.processes || (processData as any).data || [];
-      
-      // Remove duplicate processes based on _id to fix duplicate display issue
-      const uniqueProcesses = processesArray.filter((process: any, index: number, self: any[]) => {
-        if (!process || !process._id) return false; // Filter out null/undefined processes
-        return index === self.findIndex((p: any) => p && p._id && p._id.toString() === process._id.toString());
-      });
-      
-      setProducts(productsArray);
-      setProcesses(uniqueProcesses);
-      
-    } catch (error) {
-      console.error('❌ Failed to load data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load data',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Product Management
   const handleCreateProduct = async (e: React.FormEvent) => {
@@ -167,9 +142,7 @@ const Products = () => {
       
       setProductDialog(false);
       setProductForm({ name: '', dailyTarget: '', selectedProcesses: [] });
-      
-      // Reload data to refresh the products list
-      await loadData(true);
+      // React Query will automatically refresh the list
     } catch (error: any) {
       // Error toast is handled by the hook
       console.error('Failed to create product:', error);
@@ -226,9 +199,7 @@ const Products = () => {
 
       setProcessDialog(false);
       setProcessForm({ stages: [{ name: '' }] });
-      
-      // Reload data to refresh the processes list - await to ensure it completes
-      await loadData(true);
+      // React Query will automatically refresh the list
     } catch (error: any) {
       // Error toasts are handled by the hook
       console.error('Failed to create process stages:', error);
@@ -259,28 +230,16 @@ const Products = () => {
         processes
       };
       
-      const response = await productService.updateProduct(selectedProductForEditForm._id || '', updatedProduct);
-      
-      if (response.data) {
-        setProducts(prevProducts => 
-          prevProducts.map(product => 
-            product._id === selectedProductForEditForm._id 
-              ? response.data
-              : product
-          )
-        );
-      }
-      
-      toast({
-        title: 'Success',
-        description: 'Product updated successfully',
+      await updateProduct.mutateAsync({ 
+        id: selectedProductForEditForm._id || selectedProductForEditForm.id || '', 
+        data: updatedProduct 
       });
+      
       setEditProductDialog(false);
       setViewDialog(false);
       setProductForm({ name: '', dailyTarget: '', selectedProcesses: [] });
       setSelectedProductForEditForm(null);
-      
-      loadData(true);
+      // React Query will automatically refresh the list
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -321,17 +280,11 @@ const Products = () => {
         return;
       }
 
-      const response = await productService.updateDailyTarget(selectedProductForEdit, target);
+      await productService.updateDailyTarget(selectedProductForEdit, target);
       
-      // Optimistic update - update the product in the state immediately
-      if (response.data) {
-        setProducts(prevProducts => 
-          prevProducts.map(product => 
-            product._id === selectedProductForEdit 
-              ? { ...product, dailyTarget: target }
-              : product
-          )
-        );
+      // Invalidate products query to refresh the list
+      if (factoryId) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId) });
       }
       
       toast({
@@ -341,9 +294,7 @@ const Products = () => {
       setDailyTargetDialog(false);
       setDailyTargetForm({ processId: '', target: '' });
       setSelectedProductForEdit(null);
-      
-      // Also reload data to ensure consistency
-      loadData(true);
+      // React Query will automatically refresh the list
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -365,7 +316,7 @@ const Products = () => {
         await deleteProduct.mutateAsync(selectedProductForDelete._id);
         setIsDeleteProductOpen(false);
         setSelectedProductForDelete(null);
-        loadData(true);
+        // React Query will automatically refresh the list
       } catch (error: any) {
         // Error handled by the hook
       }
@@ -383,7 +334,7 @@ const Products = () => {
         await deleteProcess.mutateAsync(selectedProcessForDelete._id);
         setIsDeleteProcessOpen(false);
         setSelectedProcessForDelete(null);
-        loadData(true);
+        // React Query will automatically refresh the list
       } catch (error: any) {
         // Error handled by the hook
       }
