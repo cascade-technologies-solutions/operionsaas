@@ -179,7 +179,7 @@ export default function FactoryRegistration() {
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="p-3 bg-gradient-primary rounded-xl shadow-glow">
-                <Factory className="h-8 w-8 text-primary-foreground" />
+                <Factory className="h-8 w-8 text-primary" />
               </div>
             </div>
             <CardTitle className="text-2xl">Register Your Factory</CardTitle>
@@ -193,7 +193,7 @@ export default function FactoryRegistration() {
                 {/* Factory Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Building className="h-5 w-5" />
+                    <Building className="h-5 w-5 text-primary" />
                     Factory Information
                   </h3>
                   <FormField
@@ -214,7 +214,7 @@ export default function FactoryRegistration() {
                 {/* Admin Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <User className="h-5 w-5" />
+                    <User className="h-5 w-5 text-primary" />
                     Admin Information
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
@@ -323,7 +323,7 @@ export default function FactoryRegistration() {
                 {/* Address Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
+                    <MapPin className="h-5 w-5 text-primary" />
                     Factory Address
                   </h3>
                   <FormField
@@ -484,7 +484,7 @@ export default function FactoryRegistration() {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-primary hover:shadow-glow transition-all"
+                  className="w-full bg-gradient-primary hover:shadow-glow transition-all text-foreground"
                   disabled={isLoading}
                 >
                   {isLoading ? (
