@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { UsersManager } from '@/components/crud/UsersManager';
 import { Card } from '@/components/ui/card';
@@ -37,16 +37,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Edit, Trash2, Users, UserCheck, UserX, RotateCcw, Eye, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, UserCheck, UserX, RotateCcw, Eye, Search, Loader2 } from 'lucide-react';
 import { userService } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, QUERY_KEYS } from '@/hooks/useApi';
+import { useTenant } from '@/contexts/TenantContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 const UserManagement = () => {
   const { user } = useAuthStore();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { factoryId } = useTenant();
+  const queryClient = useQueryClient();
+  const { data: users = [], isLoading: loading } = useUsers();
+  const createUser = useCreateUser();
+  const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -66,86 +74,9 @@ const UserManagement = () => {
   });
   const [selectedProcesses, setSelectedProcesses] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
-  const loadData = async () => {
-    if (!user) {
-      console.log('No user found, cannot load data');
-      return;
-    }
-    
-    console.log('Current user:', user);
-    console.log('User factoryId:', user.factoryId);
-    console.log('User role:', user.role);
-    
-    setLoading(true);
-    try {
-      console.log('Loading users for user:', user);
-      const userData = await userService.getUsers();
-
-      console.log('User data response:', userData);
-      
-      // Handle different response structures from backend
-      let usersArray = [];
-      
-      if (userData) {
-        console.log('Response structure:', {
-          hasData: !!userData.data,
-          dataType: typeof userData.data,
-          isArray: Array.isArray(userData.data),
-          hasUsers: !!(userData.data && userData.data.users),
-          usersType: userData.data?.users ? typeof userData.data.users : 'undefined'
-        });
-        
-        if (Array.isArray(userData.data)) {
-          // Direct array response
-          usersArray = userData.data;
-        } else if (userData.data && Array.isArray(userData.data.users)) {
-          // Nested users array
-          usersArray = userData.data.users;
-        } else if (Array.isArray(userData)) {
-          // Response is directly an array
-          usersArray = userData;
-        } else if (userData.users && Array.isArray(userData.users)) {
-          // Users at root level
-          usersArray = userData.users;
-        }
-      }
-      
-      console.log('Users array:', usersArray);
-      console.log('Users array length:', usersArray.length);
-      setUsers(usersArray);
-    } catch (error) {
-      console.error('Error loading users:', error);
-      
-      // Check if it's a network error or server error
-      if (error.message && error.message.includes('Failed to fetch')) {
-        toast({
-          title: 'Connection Error',
-          description: 'Cannot connect to server. Please ensure the backend is running.',
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to load users. Please try again.',
-          variant: 'destructive',
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.factoryId) return;
-    
-
+    if (!factoryId) return;
     
     // Client-side validation
     if (!formData.firstName || formData.firstName.length < 2) {
@@ -184,13 +115,11 @@ const UserManagement = () => {
       return;
     }
     
-    setLoading(true);
-    
     try {
       const userData = {
         role: formData.role,
         password: formData.password,
-        factoryId: user.factoryId,
+        factoryId: factoryId,
         profile: {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -199,51 +128,24 @@ const UserManagement = () => {
         isActive: true,
       };
 
-
-
-
       if (editingUser) {
-        const response = await userService.updateUser(editingUser.id, userData);
-        setUsers(prev => prev.map(u => u.id === editingUser.id ? response.data : u));
-        toast({
-          title: 'Success',
-          description: 'User updated successfully',
+        await updateUser.mutateAsync({ 
+          id: editingUser._id || editingUser.id || '', 
+          data: userData 
         });
+        handleCloseDialog();
       } else {
-        const response = await userService.createUser(userData);
+        const response = await createUser.mutateAsync(userData);
         
-        // Check if user was created successfully
-        if (response.data) {
-          // Extract the user data (without generatedCredentials)
-          const newUser = { ...response.data };
-          delete newUser.generatedCredentials;
-          
-          // Check if user already exists to avoid duplication
-          const existingUser = users.find(u => u.id === newUser.id || u.username === newUser.username);
-          if (!existingUser) {
-            setUsers(prev => [...prev, newUser]);
-          }
-          
-          // Show generated credentials
-          if (response.data.generatedCredentials) {
-            setGeneratedCredentials(response.data.generatedCredentials);
-          }
-          
-          toast({
-            title: 'Success',
-            description: 'User created successfully. Please note the credentials below.',
-          });
-          
-          // Refresh the user list to ensure we have the latest data
-          setTimeout(() => {
-            loadData();
-          }, 1000);
+        // Check if user was created successfully and show generated credentials
+        if (response?.data?.generatedCredentials) {
+          setGeneratedCredentials(response.data.generatedCredentials);
         }
+        
+        handleCloseDialog();
       }
-      handleCloseDialog();
     } catch (error: any) {
-      console.error('User creation error:', error);
-      console.error('Error response:', error?.response?.data);
+      console.error('User operation error:', error);
       
       let errorMessage = error?.response?.data?.error || error?.message || 'Failed to save user';
       
@@ -271,26 +173,17 @@ const UserManagement = () => {
         description: errorMessage,
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this user?')) {
       try {
-        // API call would go here
-        setUsers(prev => prev.filter(u => u.id !== id));
-        toast({
-          title: 'Success',
-          description: 'User deleted successfully',
-        });
+        await deleteUser.mutateAsync(id);
+        // React Query will automatically refresh the list
       } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to delete user',
-          variant: 'destructive',
-        });
+        // Error toast is handled by the hook
+        console.error('Delete error:', error);
       }
     }
   };
@@ -307,9 +200,10 @@ const UserManagement = () => {
     if (confirm('Are you sure you want to reset this user\'s device?')) {
       try {
         await userService.resetDevice(userId);
-        setUsers(prev => prev.map(u => 
-          (u._id === userId || u.id === userId) ? { ...u, deviceId: undefined } : u
-        ));
+        // Invalidate user queries to refresh the list
+        if (factoryId) {
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId) });
+        }
         toast({
           title: 'Success',
           description: 'Device reset successfully',
@@ -393,14 +287,6 @@ const UserManagement = () => {
           <p className="text-muted-foreground text-sm sm:text-base">Manage supervisors and employees</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button 
-            variant="outline" 
-            onClick={loadData}
-            disabled={loading}
-            className="w-full sm:w-auto"
-          >
-            {loading ? 'Loading...' : 'Refresh'}
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleCloseDialog()} className="w-full sm:w-auto">
@@ -408,7 +294,7 @@ const UserManagement = () => {
                 Add User
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="user-form-description">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6" aria-describedby="user-form-description">
             <DialogHeader>
               <DialogTitle>
                 {editingUser ? 'Edit User' : 'Add New User'}
@@ -479,9 +365,20 @@ const UserManagement = () => {
               </div>
 
 
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1" disabled={loading}>
-                  {loading ? 'Creating...' : (editingUser ? 'Update' : 'Create')}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  type="submit" 
+                  className="flex-1" 
+                  disabled={createUser.isPending || updateUser.isPending}
+                >
+                  {(createUser.isPending || updateUser.isPending) ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {editingUser ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    editingUser ? 'Update' : 'Create'
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -500,7 +397,7 @@ const UserManagement = () => {
 
       {/* Generated Credentials Dialog */}
       <Dialog open={!!generatedCredentials} onOpenChange={() => setGeneratedCredentials(null)}>
-        <DialogContent className="max-w-md" aria-describedby="credentials-description">
+        <DialogContent className="max-w-md p-4 sm:p-6" aria-describedby="credentials-description">
           <DialogHeader>
             <DialogTitle>User Credentials Generated</DialogTitle>
             <DialogDescription id="credentials-description">
@@ -535,7 +432,7 @@ const UserManagement = () => {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button 
                 className="flex-1"
                 onClick={() => {
@@ -563,7 +460,7 @@ const UserManagement = () => {
 
       {/* View User Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="user-details-description">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6" aria-describedby="user-details-description">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
             <DialogDescription id="user-details-description">
@@ -673,10 +570,11 @@ const UserManagement = () => {
               </div>
             </div>
           )}
-          <div className="flex justify-end gap-2 mt-6">
+          <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6">
             <Button
               variant="outline"
               onClick={() => setIsViewDialogOpen(false)}
+              className="w-full sm:w-auto"
             >
               Close
             </Button>
@@ -685,6 +583,7 @@ const UserManagement = () => {
                 setIsViewDialogOpen(false);
                 handleEdit(viewingUser!);
               }}
+              className="w-full sm:w-auto"
             >
               Edit User
             </Button>
@@ -732,7 +631,7 @@ const UserManagement = () => {
                       {loading ? (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center py-8">
-                            Loading...
+                            <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                           </TableCell>
                         </TableRow>
                       ) : filteredAllUsers.length === 0 ? (

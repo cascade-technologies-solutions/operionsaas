@@ -205,7 +205,7 @@ export const useUpdateUser = () => {
   
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => 
-      userService.updateUser(factoryId!, id, data),
+      userService.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId!) });
       toast.success('User updated successfully');
@@ -224,7 +224,7 @@ export const useDeleteUser = () => {
     mutationFn: (id: string) => userService.deleteUser(id),
     onSuccess: () => {
       // Invalidate all user queries for this factory to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['users', factoryId!] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId!) });
       toast.success('User deleted successfully');
     },
     onError: () => {
