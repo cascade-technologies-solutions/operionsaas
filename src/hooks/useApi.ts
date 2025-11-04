@@ -187,7 +187,7 @@ export const useCreateUser = () => {
   const { factoryId } = useTenant();
   
   return useMutation({
-    mutationFn: (data: any) => userService.createUser(factoryId!, data),
+    mutationFn: (data: any) => userService.createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId!) });
       toast.success('User created successfully');
