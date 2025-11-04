@@ -22,8 +22,16 @@ export const useProducts = () => {
   return useQuery({
     queryKey: QUERY_KEYS.products(factoryId!),
     queryFn: async () => {
-      const result = await productService.getProducts(factoryId!);
-      return result.products || [];
+      const result = await productService.getProducts();
+      // Handle different response formats
+      if (result.products && Array.isArray(result.products)) {
+        return result.products;
+      } else if (result.data && Array.isArray(result.data)) {
+        return result.data;
+      } else if (Array.isArray(result)) {
+        return result;
+      }
+      return [];
     },
     enabled: !!factoryId,
   });
