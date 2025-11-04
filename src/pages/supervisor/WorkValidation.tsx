@@ -202,16 +202,16 @@ export default function WorkValidation() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Work Validation</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold">Work Validation</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Review and validate employee work entries
             </p>
           </div>
-          <Button onClick={loadWorkEntries} variant="outline" size="sm">
+          <Button onClick={loadWorkEntries} variant="outline" size="sm" className="w-full sm:w-auto">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -219,25 +219,25 @@ export default function WorkValidation() {
 
         {/* Filters */}
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 sm:pt-6">
             <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Label htmlFor="search">Search</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <Label htmlFor="search" className="text-sm">Search</Label>
+                <div className="relative mt-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="search"
                     placeholder="Search by employee, product, or process..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 text-sm"
                   />
                 </div>
               </div>
-              <div className="sm:w-48">
-                <Label htmlFor="status-filter">Status</Label>
+              <div className="w-full sm:w-48">
+                <Label htmlFor="status-filter" className="text-sm">Status</Label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent>
@@ -272,41 +272,45 @@ export default function WorkValidation() {
           ) : (
             filteredEntries.map((entry) => (
               <Card key={entry._id} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 sm:pt-6">
                   <div className="flex flex-col lg:flex-row gap-4">
                     {/* Entry Details */}
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold">
+                    <div className="flex-1 space-y-3 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm sm:text-base truncate">
                             {entry.employeeId?.profile?.firstName} {entry.employeeId?.profile?.lastName}
                           </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {getSafeStringValue(entry.processId) || 'N/A'} • {getSafeStringValue(entry.productId) || 'N/A'} • Size: {entry.sizeCode || 'N/A'}
+                          <p className="text-xs sm:text-sm text-muted-foreground break-words">
+                            <span className="truncate block">{getSafeStringValue(entry.processId) || 'N/A'}</span>
+                            <span className="hidden sm:inline"> • </span>
+                            <span className="truncate block sm:inline">{getSafeStringValue(entry.productId) || 'N/A'}</span>
+                            <span className="hidden sm:inline"> • </span>
+                            <span className="truncate block sm:inline">Size: {entry.sizeCode || 'N/A'}</span>
                           </p>
                         </div>
-                        <Badge className={getStatusColor(entry.validationStatus)}>
+                        <Badge className={`${getStatusColor(entry.validationStatus)} shrink-0 text-xs`}>
                           {getStatusIcon(entry.validationStatus)}
                           <span className="ml-1">{getStatusText(entry.validationStatus)}</span>
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Target:</span>
-                          <span className="ml-1 font-medium">{entry.targetQuantity}</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-xs">Target:</span>
+                          <span className="font-medium mt-0.5">{entry.targetQuantity}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Achieved:</span>
-                          <span className="ml-1 font-medium text-green-600">{entry.achieved}</span>
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-xs">Achieved:</span>
+                          <span className="font-medium text-green-600 mt-0.5">{entry.achieved}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Rejected:</span>
-                          <span className="ml-1 font-medium text-red-600">{entry.rejected}</span>
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-xs">Rejected:</span>
+                          <span className="font-medium text-red-600 mt-0.5">{entry.rejected}</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Efficiency:</span>
-                          <span className="ml-1 font-medium">
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-xs">Efficiency:</span>
+                          <span className="font-medium mt-0.5">
                             {entry.targetQuantity > 0 
                               ? Math.round((entry.achieved / entry.targetQuantity) * 100)
                               : 0
@@ -315,10 +319,10 @@ export default function WorkValidation() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>
+                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                          <span className="break-words">
                             {entry.createdAt 
                               ? format(new Date(entry.createdAt), 'MMM dd, yyyy HH:mm')
                               : 'Unknown date'
@@ -327,16 +331,16 @@ export default function WorkValidation() {
                         </div>
                         {entry.machineCode && (
                           <div className="flex items-center gap-1">
-                            <Package className="h-4 w-4" />
-                            <span>{entry.machineCode}</span>
+                            <Package className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                            <span className="truncate">{entry.machineCode}</span>
                           </div>
                         )}
                       </div>
 
                       {entry.reasonForLessProduction && (
-                        <div className="text-sm">
+                        <div className="text-xs sm:text-sm">
                           <span className="text-muted-foreground">Reason for less production:</span>
-                          <p className="mt-1 text-amber-700 bg-amber-50 p-2 rounded">
+                          <p className="mt-1 text-amber-700 bg-amber-50 p-2 rounded break-words">
                             {entry.reasonForLessProduction}
                           </p>
                         </div>
@@ -344,19 +348,19 @@ export default function WorkValidation() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col gap-2 lg:w-48">
+                    <div className="flex flex-col gap-2 lg:w-48 w-full">
                       {entry.photo && (
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full">
-                              <ImageIcon className="h-4 w-4 mr-2" />
+                            <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm">
+                              <ImageIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                               View Photo
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl" aria-describedby="work-photo-description">
+                          <DialogContent className="max-w-[95vw] sm:max-w-2xl" aria-describedby="work-photo-description">
                             <DialogHeader>
-                              <DialogTitle>Work Photo</DialogTitle>
-                              <DialogDescription id="work-photo-description">
+                              <DialogTitle className="text-base sm:text-lg">Work Photo</DialogTitle>
+                              <DialogDescription id="work-photo-description" className="text-xs sm:text-sm">
                                 Photo submitted by {entry.employeeId?.profile?.firstName} {entry.employeeId?.profile?.lastName}
                               </DialogDescription>
                             </DialogHeader>
@@ -377,55 +381,56 @@ export default function WorkValidation() {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="w-full"
+                              className="w-full text-xs sm:text-sm"
                               onClick={() => setSelectedEntry(entry)}
                             >
-                              <Eye className="h-4 w-4 mr-2" />
+                              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                               Review & Validate
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-md" aria-describedby="validate-work-description">
+                          <DialogContent className="max-w-[95vw] sm:max-w-md" aria-describedby="validate-work-description">
                             <DialogHeader>
-                              <DialogTitle>Validate Work Entry</DialogTitle>
-                              <DialogDescription id="validate-work-description">
+                              <DialogTitle className="text-base sm:text-lg">Validate Work Entry</DialogTitle>
+                              <DialogDescription id="validate-work-description" className="text-xs sm:text-sm">
                                 Review the work entry and provide validation feedback
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
                               <div>
-                                <Label htmlFor="validation-notes">Validation Notes (Optional)</Label>
+                                <Label htmlFor="validation-notes" className="text-xs sm:text-sm">Validation Notes (Optional)</Label>
                                 <Textarea
                                   id="validation-notes"
                                   placeholder="Add any notes about the validation..."
                                   value={validationNotes}
                                   onChange={(e) => setValidationNotes(e.target.value)}
                                   rows={3}
+                                  className="text-xs sm:text-sm mt-1"
                                 />
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 <Button
                                   onClick={() => handleValidate(entry._id!, 'approved', validationNotes)}
                                   disabled={loading}
-                                  className="flex-1"
+                                  className="flex-1 text-xs sm:text-sm"
                                   variant="default"
                                 >
                                   {loading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
                                   ) : (
-                                    <ThumbsUp className="h-4 w-4 mr-2" />
+                                    <ThumbsUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                                   )}
                                   Approve
                                 </Button>
                                 <Button
                                   onClick={() => handleValidate(entry._id!, 'rejected', validationNotes)}
                                   disabled={loading}
-                                  className="flex-1"
+                                  className="flex-1 text-xs sm:text-sm"
                                   variant="destructive"
                                 >
                                   {loading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
                                   ) : (
-                                    <ThumbsDown className="h-4 w-4 mr-2" />
+                                    <ThumbsDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                                   )}
                                   Reject
                                 </Button>
@@ -436,11 +441,11 @@ export default function WorkValidation() {
                       )}
 
                       {entry.validationStatus !== 'pending' && (
-                        <div className="text-sm text-muted-foreground">
-                          <p>Validated by: {entry.validatedBy?.profile?.firstName} {entry.validatedBy?.profile?.lastName}</p>
+                        <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+                          <p className="break-words">Validated by: {entry.validatedBy?.profile?.firstName} {entry.validatedBy?.profile?.lastName}</p>
                           <p>Date: {entry.validatedAt ? format(new Date(entry.validatedAt), 'MMM dd, yyyy HH:mm') : 'Unknown'}</p>
                           {entry.validationNotes && (
-                            <p className="mt-2">Notes: {entry.validationNotes}</p>
+                            <p className="mt-2 break-words">Notes: {entry.validationNotes}</p>
                           )}
                         </div>
                       )}
