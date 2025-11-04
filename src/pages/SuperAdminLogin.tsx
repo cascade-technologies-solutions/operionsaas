@@ -112,7 +112,7 @@ export default function SuperAdminLogin() {
             
             <Button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+              className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
               disabled={isLoading}
             >
               {isLoading ? (

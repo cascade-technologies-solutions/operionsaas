@@ -144,7 +144,7 @@ export default function Login() {
             
             <Button 
               type="submit" 
-              className="w-full bg-gradient-primary hover:shadow-glow transition-all"
+              className="w-full bg-gradient-primary hover:shadow-glow transition-all text-foreground"
               disabled={isLoading}
             >
               {isLoading ? (
