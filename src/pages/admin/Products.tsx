@@ -21,15 +21,13 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Package, Settings, Layers, Clock, Target, ArrowUp, ArrowDown, GripVertical, Eye } from 'lucide-react';
-import { productService, machineService } from '@/services/api';
+import { productService, processService, machineService } from '@/services/api';
 import { Product, Process } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { SortableProcessList } from '@/components/SortableProcessList';
 import { DeleteConfirmDialog } from '@/components/crud/DeleteConfirmDialog';
-import { useDeleteProduct, useDeleteProcess, useCreateProduct, useCreateProcess, useUpdateProduct, useProducts, useProcesses, QUERY_KEYS } from '@/hooks/useApi';
-import { useQueryClient } from '@tanstack/react-query';
-import { useTenant } from '@/contexts/TenantContext';
+import { useDeleteProduct, useDeleteProcess, useCreateProduct, useCreateProcess } from '@/hooks/useApi';
 
 interface Machine {
   _id: string;
@@ -52,18 +50,16 @@ interface WorkEntry {
 
 const Products = () => {
   const { user } = useAuthStore();
-  const { factoryId } = useTenant();
-  const queryClient = useQueryClient();
-  const { data: products = [], isLoading: loading } = useProducts();
-  const { data: processes = [] } = useProcesses();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [processes, setProcesses] = useState<Process[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // React Query hooks for automatic cache invalidation
   const deleteProduct = useDeleteProduct();
   const deleteProcess = useDeleteProcess();
   const createProduct = useCreateProduct();
   const createProcess = useCreateProcess();
-  const updateProduct = useUpdateProduct();
   
   // Dialog states
   const [productDialog, setProductDialog] = useState(false);
@@ -88,6 +84,7 @@ const Products = () => {
     target: '' 
   });
   const [selectedProductForEdit, setSelectedProductForEdit] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Delete dialog states
   const [isDeleteProductOpen, setIsDeleteProductOpen] = useState(false);
@@ -108,18 +105,46 @@ const Products = () => {
   });
   const [isWorking, setIsWorking] = useState(false);
 
-  // Load machines separately (not using React Query for now)
   useEffect(() => {
-    const loadMachines = async () => {
-      try {
-        const machinesData = await machineService.getMachines();
-        setMachines(machinesData.data || machinesData || []);
-      } catch (error) {
-        console.error('Failed to load machines:', error);
-      }
-    };
-    loadMachines();
+    loadData();
   }, []);
+
+  const loadData = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      setRefreshKey(prev => prev + 1);
+    }
+    
+    setLoading(true);
+    try {
+      const [productData, processData] = await Promise.all([
+        productService.getProducts(),
+        processService.getProcesses(),
+      ]);
+      
+      // Handle nested data structure from backend
+      const productsArray = (productData as any).products || (productData as any).data?.products || (productData as any).data || [];
+      const processesArray = (processData as any).processes || (processData as any).data?.processes || (processData as any).data || [];
+      
+      // Remove duplicate processes based on _id to fix duplicate display issue
+      const uniqueProcesses = processesArray.filter((process: any, index: number, self: any[]) => {
+        if (!process || !process._id) return false; // Filter out null/undefined processes
+        return index === self.findIndex((p: any) => p && p._id && p._id.toString() === process._id.toString());
+      });
+      
+      setProducts(productsArray);
+      setProcesses(uniqueProcesses);
+      
+    } catch (error) {
+      console.error('❌ Failed to load data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Product Management
   const handleCreateProduct = async (e: React.FormEvent) => {
@@ -142,7 +167,9 @@ const Products = () => {
       
       setProductDialog(false);
       setProductForm({ name: '', dailyTarget: '', selectedProcesses: [] });
-      // React Query will automatically refresh the list
+      
+      // Reload data to refresh the products list
+      await loadData(true);
     } catch (error: any) {
       // Error toast is handled by the hook
       console.error('Failed to create product:', error);
@@ -199,7 +226,9 @@ const Products = () => {
 
       setProcessDialog(false);
       setProcessForm({ stages: [{ name: '' }] });
-      // React Query will automatically refresh the list
+      
+      // Reload data to refresh the processes list - await to ensure it completes
+      await loadData(true);
     } catch (error: any) {
       // Error toasts are handled by the hook
       console.error('Failed to create process stages:', error);
@@ -230,16 +259,28 @@ const Products = () => {
         processes
       };
       
-      await updateProduct.mutateAsync({ 
-        id: selectedProductForEditForm._id || selectedProductForEditForm.id || '', 
-        data: updatedProduct 
-      });
+      const response = await productService.updateProduct(selectedProductForEditForm._id || '', updatedProduct);
       
+      if (response.data) {
+        setProducts(prevProducts => 
+          prevProducts.map(product => 
+            product._id === selectedProductForEditForm._id 
+              ? response.data
+              : product
+          )
+        );
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'Product updated successfully',
+      });
       setEditProductDialog(false);
       setViewDialog(false);
       setProductForm({ name: '', dailyTarget: '', selectedProcesses: [] });
       setSelectedProductForEditForm(null);
-      // React Query will automatically refresh the list
+      
+      loadData(true);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -280,11 +321,17 @@ const Products = () => {
         return;
       }
 
-      await productService.updateDailyTarget(selectedProductForEdit, target);
+      const response = await productService.updateDailyTarget(selectedProductForEdit, target);
       
-      // Invalidate products query to refresh the list
-      if (factoryId) {
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId) });
+      // Optimistic update - update the product in the state immediately
+      if (response.data) {
+        setProducts(prevProducts => 
+          prevProducts.map(product => 
+            product._id === selectedProductForEdit 
+              ? { ...product, dailyTarget: target }
+              : product
+          )
+        );
       }
       
       toast({
@@ -294,7 +341,9 @@ const Products = () => {
       setDailyTargetDialog(false);
       setDailyTargetForm({ processId: '', target: '' });
       setSelectedProductForEdit(null);
-      // React Query will automatically refresh the list
+      
+      // Also reload data to ensure consistency
+      loadData(true);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -316,7 +365,7 @@ const Products = () => {
         await deleteProduct.mutateAsync(selectedProductForDelete._id);
         setIsDeleteProductOpen(false);
         setSelectedProductForDelete(null);
-        // React Query will automatically refresh the list
+        loadData(true);
       } catch (error: any) {
         // Error handled by the hook
       }
@@ -334,7 +383,7 @@ const Products = () => {
         await deleteProcess.mutateAsync(selectedProcessForDelete._id);
         setIsDeleteProcessOpen(false);
         setSelectedProcessForDelete(null);
-        // React Query will automatically refresh the list
+        loadData(true);
       } catch (error: any) {
         // Error handled by the hook
       }
@@ -603,9 +652,9 @@ const Products = () => {
             </div>
 
             {/* Products List */}
-            <div className="space-y-4">
+            <div className="space-y-4" key={refreshKey}>
               {products.map((product) => (
-                <div key={product._id || product.id} className="border rounded-lg p-3 sm:p-4">
+                <div key={`${product._id}-${refreshKey}`} className="border rounded-lg p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                     <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                       <Package className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -738,7 +787,7 @@ const Products = () => {
             </div>
 
             {/* Processes List */}
-            <div className="space-y-4 mt-6">
+            <div className="space-y-4 mt-6" key={`processes-${refreshKey}`}>
               {processes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No processes found. Create your first process above.
@@ -748,7 +797,7 @@ const Products = () => {
                   {processes
                     .filter((process) => process && process._id) // Filter out null/undefined processes
                     .map((process, index) => (
-                      <div key={process._id || process.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={`${process._id}-${refreshKey}`} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
                             {index + 1}

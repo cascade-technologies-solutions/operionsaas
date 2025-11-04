@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { ProcessesManager } from '@/components/crud/ProcessesManager';
 import { Card } from '@/components/ui/card';
@@ -30,20 +30,21 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Settings2, ArrowUpDown, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Settings2, ArrowUpDown } from 'lucide-react';
+import { processService, productService } from '@/services/api';
 import { Process, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
-import { useProcesses, useProducts, useCreateProcess, useUpdateProcess, useDeleteProcess } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/authStore';
+import { useDeleteProcess } from '@/hooks/useApi';
 
 const Processes = () => {
-  const { data: processes = [], isLoading: loading } = useProcesses();
-  const { data: products = [] } = useProducts();
-  const createProcess = useCreateProcess();
-  const updateProcess = useUpdateProcess();
-  const deleteProcess = useDeleteProcess();
-  
+  const { user } = useAuthStore();
+  const [processes, setProcesses] = useState<Process[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProcess, setEditingProcess] = useState<Process | null>(null);
+  const deleteProcess = useDeleteProcess();
   const [formData, setFormData] = useState({
     name: '',
     productId: '',
@@ -54,37 +55,81 @@ const Processes = () => {
     assignedEmployees: []
   });
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    if (!user?.factoryId) return;
+    setLoading(true);
+    try {
+      const [processData, productData] = await Promise.all([
+        processService.getProcesses(),
+        productService.getProducts(),
+      ]);
+      setProcesses(processData.processes || []);
+      setProducts(productData.products || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.factoryId) return;
     
     try {
       if (editingProcess) {
-        await updateProcess.mutateAsync({ 
-          id: editingProcess.id, 
-          data: formData 
+        const updated = await processService.updateProcess(editingProcess.id, formData);
+        // Optimistic update
+        setProcesses(prev => prev.map(p => p.id === editingProcess.id ? updated : p));
+        toast({
+          title: 'Success',
+          description: 'Process updated successfully',
         });
       } else {
-        await createProcess.mutateAsync({
+        const newProcess = await processService.createProcess({
           ...formData,
           isActive: true,
         });
+        // Optimistic update
+        setProcesses(prev => [...prev, newProcess]);
+        toast({
+          title: 'Success',
+          description: 'Process created successfully',
+        });
       }
       handleCloseDialog();
-      // React Query will automatically refresh the list
+      // Refresh data to ensure consistency with server
+      await loadData();
     } catch (error) {
-      // Error toast is handled by the hooks
-      console.error('Failed to save process:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save process',
+        variant: 'destructive',
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this process?')) {
       try {
+        // Use React Query hook which will handle cache invalidation
         await deleteProcess.mutateAsync(id);
-        // React Query will automatically refresh the list
+        // Optimistic update for immediate UI feedback
+        setProcesses(prev => prev.filter(p => p.id !== id));
+        // Refresh data to ensure consistency with server
+        await loadData();
       } catch (error) {
         // Error toast is handled by the hook
-        console.error('Failed to delete process:', error);
+        // Revert optimistic update on error
+        await loadData();
       }
     }
   };
@@ -204,19 +249,8 @@ const Processes = () => {
                 />
               </div>
               <div className="flex gap-2">
-                <Button 
-                  type="submit" 
-                  className="flex-1"
-                  disabled={createProcess.isPending || updateProcess.isPending}
-                >
-                  {(createProcess.isPending || updateProcess.isPending) ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {editingProcess ? 'Updating...' : 'Creating...'}
-                    </>
-                  ) : (
-                    editingProcess ? 'Update' : 'Create'
-                  )}
+                <Button type="submit" className="flex-1">
+                  {editingProcess ? 'Update' : 'Create'}
                 </Button>
                 <Button
                   type="button"
@@ -250,8 +284,8 @@ const Processes = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                    <TableCell colSpan={7} className="text-center">
+                      Loading...
                     </TableCell>
                   </TableRow>
                 ) : processes.length === 0 ? (

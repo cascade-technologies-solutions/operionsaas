@@ -569,19 +569,8 @@ export default function EmployeeDashboard() {
   const loadProcessQuantityStatus = async (processId: string) => {
     try {
       // Always call backend to get accurate ProcessStage data
-      // This returns cumulative available quantity from previous stage (all previous days + today)
       const response = await processService.getQuantityStatus(processId, selectedProduct);
-      const quantityStatus = response.data || response;
-      
-      console.log('📊 Process quantity status received:', {
-        processId,
-        productId: selectedProduct,
-        availableQuantity: quantityStatus.availableQuantity,
-        isLocked: quantityStatus.isLocked,
-        isFirstProcess: products.find(p => p._id === selectedProduct)?.processes?.find(proc => proc.processId === processId)?.order === 1
-      });
-      
-      setProcessQuantityStatus(quantityStatus);
+      setProcessQuantityStatus(response.data || response);
     } catch (error) {
       console.error('Failed to load quantity status:', error);
       // Set safe default instead of null to prevent UI issues
@@ -1010,19 +999,16 @@ export default function EmployeeDashboard() {
     
     
     if (!isFirstProcess && processQuantityStatus) {
-      // For non-first stages, check if there's enough cumulative available quantity from previous stage
-      // availableQuantity is cumulative: sum of all previous days' remaining + today's available from previous stage
+      // For non-first stages, check if there's enough available quantity to consume
       // We need to check total consumption (achieved + rejected)
       const totalToConsume = formData.achieved + formData.rejected;
-      const cumulativeAvailable = processQuantityStatus.availableQuantity; // This is cumulative from previous stage
-      
-      if (cumulativeAvailable < totalToConsume) {
-        toast.error(`Insufficient quantity available from previous stage. Available (cumulative): ${cumulativeAvailable}, Required: ${totalToConsume}`);
+      if (processQuantityStatus.availableQuantity < totalToConsume) {
+        toast.error(`Insufficient quantity available for consumption. Available: ${processQuantityStatus.availableQuantity}, Required: ${totalToConsume}`);
         return;
       }
       
       // Check if consumption would lock the stage
-      const remainingAfterConsumption = cumulativeAvailable - totalToConsume;
+      const remainingAfterConsumption = processQuantityStatus.availableQuantity - totalToConsume;
       if (remainingAfterConsumption <= 0) {
         toast.warning(`This will consume all available units and lock the stage. Remaining after consumption: ${remainingAfterConsumption}`);
       }
@@ -1419,9 +1405,8 @@ export default function EmployeeDashboard() {
           toast.error('This process stage is locked. Please wait for supervisor to unlock it.');
           return;
         }
-        // Check cumulative available quantity from previous stage
-        if (processQuantityStatus.availableQuantity <= 0) {
-          toast.error('No quantity available from previous stage. Please wait for the previous stage to complete.');
+        if (processQuantityStatus.remainingQuantity <= 0) {
+          toast.error('No quantity available for this stage. Please wait for the previous stage to complete.');
           return;
         }
       }
@@ -1962,7 +1947,7 @@ export default function EmployeeDashboard() {
                     <div className="text-sm">
                       <span className="text-gray-600">Available:</span>
                       <span className="ml-1 font-medium text-blue-600 text-lg">{processQuantityStatus.availableQuantity || 0}</span>
-                      <span className="text-xs text-gray-500 block mt-1">Cumulative from previous stage (all days + today)</span>
+                      <span className="text-xs text-gray-500 block mt-1">Remaining from previous stage</span>
                     </div>
                     {processQuantityStatus.isLocked && (
                       <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
@@ -2062,7 +2047,7 @@ export default function EmployeeDashboard() {
                     !achievedQuantity || 
                     loading ||
                     (processQuantityStatus && processQuantityStatus.isLocked) ||
-                    (processQuantityStatus && processQuantityStatus.availableQuantity <= 0 && 
+                    (processQuantityStatus && processQuantityStatus.remainingQuantity <= 0 && 
                      !(products.find(p => p._id === selectedProduct)?.processes?.find(proc => proc.processId === selectedProcess)?.order === 1))
                   }
                   className="w-full h-12 sm:h-10 text-base sm:text-sm"

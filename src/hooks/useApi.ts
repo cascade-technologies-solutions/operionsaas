@@ -22,16 +22,8 @@ export const useProducts = () => {
   return useQuery({
     queryKey: QUERY_KEYS.products(factoryId!),
     queryFn: async () => {
-      const result = await productService.getProducts();
-      // Handle different response formats
-      if (result.products && Array.isArray(result.products)) {
-        return result.products;
-      } else if (result.data && Array.isArray(result.data)) {
-        return result.data;
-      } else if (Array.isArray(result)) {
-        return result;
-      }
-      return [];
+      const result = await productService.getProducts(factoryId!);
+      return result.products || [];
     },
     enabled: !!factoryId,
   });
@@ -158,6 +150,7 @@ export const useDeleteProcess = () => {
     mutationFn: (id: string) => processService.deleteProcess(id),
     onSuccess: () => {
       // Invalidate all process queries to refresh any component using processes
+      queryClient.invalidateQueries({ queryKey: ['processes', factoryId!] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId!) });
       toast.success('Process deleted successfully');
     },
@@ -195,7 +188,7 @@ export const useCreateUser = () => {
   const { factoryId } = useTenant();
   
   return useMutation({
-    mutationFn: (data: any) => userService.createUser(data),
+    mutationFn: (data: any) => userService.createUser(factoryId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId!) });
       toast.success('User created successfully');
@@ -212,7 +205,7 @@ export const useUpdateUser = () => {
   
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => 
-      userService.updateUser(id, data),
+      userService.updateUser(factoryId!, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId!) });
       toast.success('User updated successfully');
@@ -231,7 +224,7 @@ export const useDeleteUser = () => {
     mutationFn: (id: string) => userService.deleteUser(id),
     onSuccess: () => {
       // Invalidate all user queries for this factory to refresh the list
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId!) });
+      queryClient.invalidateQueries({ queryKey: ['users', factoryId!] });
       toast.success('User deleted successfully');
     },
     onError: () => {
