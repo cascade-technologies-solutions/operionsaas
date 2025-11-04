@@ -131,7 +131,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
       {/* Main Content */}
       <main className={cn(
         "flex-1 p-3 sm:p-4 md:p-6 max-w-7xl mx-auto w-full",
-        user?.role === 'employee' ? 'pb-20 sm:pb-24' : 'pb-16 sm:pb-20 md:pb-6'
+        user?.role === 'employee' ? 'pb-20 sm:pb-24' : 'pb-20 sm:pb-20 md:pb-6'
       )}>
         {children}
       </main>

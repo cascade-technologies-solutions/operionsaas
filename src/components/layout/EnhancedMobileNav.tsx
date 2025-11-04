@@ -70,7 +70,7 @@ const EnhancedMobileNav = () => {
       user?.role === 'employee' ? '' : 'md:hidden'
     )}>
       <div className={cn(
-        "grid h-16 px-1 sm:px-2",
+        "grid h-16 px-0.5 sm:px-1",
         navItems.length === 4 ? "grid-cols-4" : 
         navItems.length === 5 ? "grid-cols-5" : 
         navItems.length === 6 ? "grid-cols-6" :
@@ -87,7 +87,7 @@ const EnhancedMobileNav = () => {
               end={isDashboardRoute}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center justify-center gap-1 text-xs transition-all duration-200 relative p-1 sm:p-2 rounded-lg mx-0.5 sm:mx-1',
+                  'flex flex-col items-center justify-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs transition-all duration-200 relative p-1 sm:p-2 rounded-lg mx-0.5',
                   isActive
                     ? 'text-primary bg-primary/10 shadow-md'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
@@ -101,20 +101,20 @@ const EnhancedMobileNav = () => {
                     {item.badge && (
                       <Badge 
                         variant="destructive" 
-                        className="absolute -top-1 -right-1 h-3 w-3 sm:h-4 sm:w-4 p-0 text-xs flex items-center justify-center"
+                        className="absolute -top-1 -right-1 h-3 w-3 sm:h-4 sm:w-4 p-0 text-[8px] sm:text-xs flex items-center justify-center"
                       >
                         {item.badge}
                       </Badge>
                     )}
                   </div>
                   <span className={cn(
-                    "truncate px-0.5 sm:px-1 font-medium text-xs", 
+                    "truncate px-0.5 font-medium leading-tight", 
                     isActive && "text-primary"
                   )}>
                     {item.label}
                   </span>
                   {isActive && (
-                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 sm:w-8 h-1 bg-primary rounded-t-full" />
+                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-5 sm:w-8 h-0.5 sm:h-1 bg-primary rounded-t-full" />
                   )}
                 </>
               )}

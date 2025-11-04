@@ -202,7 +202,7 @@ export default function WorkValidation() {
 
   return (
     <Layout>
-      <div className="space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
+      <div className="space-y-2 sm:space-y-4 md:space-y-6 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -211,15 +211,15 @@ export default function WorkValidation() {
               Review and validate employee work entries
             </p>
           </div>
-          <Button onClick={loadWorkEntries} variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">
-            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+          <Button onClick={loadWorkEntries} variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm h-11 sm:h-9">
+            <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
         </div>
 
         {/* Filters */}
         <Card className="overflow-hidden">
-          <CardContent className="pt-3 sm:pt-4 md:pt-6 px-3 sm:px-4 md:px-6">
+          <CardContent className="pt-3 sm:pt-4 md:pt-6 px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 min-w-0">
                 <Label htmlFor="search" className="text-sm">Search</Label>
@@ -253,7 +253,7 @@ export default function WorkValidation() {
         </Card>
 
         {/* Work Entries List */}
-        <div className="space-y-3 sm:space-y-4 max-w-full">
+        <div className="space-y-2 sm:space-y-3 md:space-y-4 max-w-full">
           {filteredEntries.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
@@ -281,7 +281,7 @@ export default function WorkValidation() {
                           <h3 className="font-semibold text-xs sm:text-sm md:text-base truncate leading-tight">
                             {entry.employeeId?.profile?.firstName} {entry.employeeId?.profile?.lastName}
                           </h3>
-                          <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground space-y-0.5 mt-1">
+                          <div className="text-xs sm:text-sm md:text-base text-muted-foreground space-y-0.5 mt-1">
                             <div className="truncate">{getSafeStringValue(entry.processId) || 'N/A'}</div>
                             <div className="truncate">{getSafeStringValue(entry.productId) || 'N/A'}</div>
                             <div className="truncate">Size: {entry.sizeCode || 'N/A'}</div>
@@ -293,22 +293,22 @@ export default function WorkValidation() {
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
                         <div className="flex flex-col min-w-0">
-                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Target:</span>
-                          <span className="font-medium text-xs sm:text-sm mt-0.5 truncate">{entry.targetQuantity}</span>
+                          <span className="text-muted-foreground text-xs sm:text-sm leading-tight">Target:</span>
+                          <span className="font-medium text-sm sm:text-base mt-0.5 truncate">{entry.targetQuantity}</span>
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Achieved:</span>
-                          <span className="font-medium text-green-600 text-xs sm:text-sm mt-0.5 truncate">{entry.achieved}</span>
+                          <span className="text-muted-foreground text-xs sm:text-sm leading-tight">Achieved:</span>
+                          <span className="font-medium text-green-600 text-sm sm:text-base mt-0.5 truncate">{entry.achieved}</span>
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Rejected:</span>
-                          <span className="font-medium text-red-600 text-xs sm:text-sm mt-0.5 truncate">{entry.rejected}</span>
+                          <span className="text-muted-foreground text-xs sm:text-sm leading-tight">Rejected:</span>
+                          <span className="font-medium text-red-600 text-sm sm:text-base mt-0.5 truncate">{entry.rejected}</span>
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="text-muted-foreground text-[10px] sm:text-xs leading-tight">Efficiency:</span>
-                          <span className="font-medium text-xs sm:text-sm mt-0.5 truncate">
+                          <span className="text-muted-foreground text-xs sm:text-sm leading-tight">Efficiency:</span>
+                          <span className="font-medium text-sm sm:text-base mt-0.5 truncate">
                             {entry.targetQuantity > 0 
                               ? Math.round((entry.achieved / entry.targetQuantity) * 100)
                               : 0
@@ -317,9 +317,9 @@ export default function WorkValidation() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-1.5 sm:gap-2 text-[10px] sm:text-xs md:text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1 min-w-0">
-                          <Calendar className="h-3 w-3 shrink-0" />
+                      <div className="flex flex-col gap-1.5 sm:gap-2 text-xs sm:text-sm md:text-base text-muted-foreground">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Calendar className="h-4 w-4 shrink-0" />
                           <span className="break-words min-w-0">
                             {entry.createdAt 
                               ? format(new Date(entry.createdAt), 'MMM dd, yyyy HH:mm')
@@ -328,15 +328,15 @@ export default function WorkValidation() {
                           </span>
                         </div>
                         {entry.machineCode && (
-                          <div className="flex items-center gap-1 min-w-0">
-                            <Package className="h-3 w-3 shrink-0" />
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Package className="h-4 w-4 shrink-0" />
                             <span className="truncate min-w-0">{entry.machineCode}</span>
                           </div>
                         )}
                       </div>
 
                       {entry.reasonForLessProduction && (
-                        <div className="text-[10px] sm:text-xs md:text-sm">
+                        <div className="text-xs sm:text-sm md:text-base">
                           <span className="text-muted-foreground block mb-1">Reason for less production:</span>
                           <p className="text-amber-700 bg-amber-50 p-2 rounded break-words leading-relaxed">
                             {entry.reasonForLessProduction}
@@ -350,8 +350,8 @@ export default function WorkValidation() {
                       {entry.photo && (
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full text-[10px] sm:text-xs md:text-sm h-8 sm:h-9">
-                              <ImageIcon className="h-3 w-3 mr-1.5 sm:mr-2 shrink-0" />
+                            <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm md:text-base h-11 sm:h-9">
+                              <ImageIcon className="h-4 w-4 mr-2 shrink-0" />
                               <span className="truncate">View Photo</span>
                             </Button>
                           </DialogTrigger>
@@ -379,10 +379,10 @@ export default function WorkValidation() {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="w-full text-[10px] sm:text-xs md:text-sm h-8 sm:h-9"
+                              className="w-full text-xs sm:text-sm md:text-base h-11 sm:h-9"
                               onClick={() => setSelectedEntry(entry)}
                             >
-                              <Eye className="h-3 w-3 mr-1.5 sm:mr-2 shrink-0" />
+                              <Eye className="h-4 w-4 mr-2 shrink-0" />
                               <span className="truncate">Review & Validate</span>
                             </Button>
                           </DialogTrigger>
@@ -409,26 +409,26 @@ export default function WorkValidation() {
                                 <Button
                                   onClick={() => handleValidate(entry._id!, 'approved', validationNotes)}
                                   disabled={loading}
-                                  className="flex-1 text-xs sm:text-sm"
+                                  className="flex-1 text-sm sm:text-base h-11 sm:h-10"
                                   variant="default"
                                 >
                                   {loading ? (
-                                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                   ) : (
-                                    <ThumbsUp className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                                    <ThumbsUp className="h-4 w-4 mr-2" />
                                   )}
                                   Approve
                                 </Button>
                                 <Button
                                   onClick={() => handleValidate(entry._id!, 'rejected', validationNotes)}
                                   disabled={loading}
-                                  className="flex-1 text-xs sm:text-sm"
+                                  className="flex-1 text-sm sm:text-base h-11 sm:h-10"
                                   variant="destructive"
                                 >
                                   {loading ? (
-                                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                   ) : (
-                                    <ThumbsDown className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                                    <ThumbsDown className="h-4 w-4 mr-2" />
                                   )}
                                   Reject
                                 </Button>
@@ -439,7 +439,7 @@ export default function WorkValidation() {
                       )}
 
                       {entry.validationStatus !== 'pending' && (
-                        <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground space-y-1 leading-relaxed">
+                        <div className="text-xs sm:text-sm md:text-base text-muted-foreground space-y-1 leading-relaxed">
                           <p className="break-words min-w-0">Validated by: {entry.validatedBy?.profile?.firstName} {entry.validatedBy?.profile?.lastName}</p>
                           <p className="break-words min-w-0">Date: {entry.validatedAt ? format(new Date(entry.validatedAt), 'MMM dd, yyyy HH:mm') : 'Unknown'}</p>
                           {entry.validationNotes && (
