@@ -1024,8 +1024,35 @@ export default function EmployeeDashboard() {
 
     // Check available quantity for non-first stages
     const selectedProductData = products.find(p => p._id === formData.productId);
-    const isFirstProcess = selectedProductData?.processes?.find(p => p.processId === formData.processId)?.order === 1;
     
+    // Normalize processId to string for comparison (handle both ObjectId and string)
+    const normalizeProcessId = (id: any): string => {
+      if (!id) return '';
+      if (typeof id === 'string') return id;
+      if (id.toString) return id.toString();
+      return String(id);
+    };
+    
+    const formProcessId = normalizeProcessId(formData.processId);
+    const matchingProcess = selectedProductData?.processes?.find(p => {
+      const processId = normalizeProcessId(p.processId);
+      return processId === formProcessId;
+    });
+    
+    const isFirstProcess = matchingProcess?.order === 1;
+    
+    // Debug logging for processId comparison
+    console.log('🔍 ProcessId comparison debug:', {
+      formProcessId,
+      productProcesses: selectedProductData?.processes?.map(p => ({
+        processId: normalizeProcessId(p.processId),
+        order: p.order,
+        matches: normalizeProcessId(p.processId) === formProcessId
+      })),
+      matchingProcess,
+      isFirstProcess,
+      selectedProduct: selectedProductData?.name
+    });
     
     if (!isFirstProcess && processQuantityStatus) {
       // For non-first stages, check if there's enough available quantity to consume
@@ -1054,10 +1081,35 @@ export default function EmployeeDashboard() {
 
       // Check if this is the first process stage
       const selectedProductData = products.find(p => p._id === formData.productId);
-      const isFirstProcess = selectedProductData?.processes?.find(p => p.processId === formData.processId)?.order === 1;
+      
+      // Normalize processId to string for comparison (handle both ObjectId and string)
+      const normalizeProcessId = (id: any): string => {
+        if (!id) return '';
+        if (typeof id === 'string') return id;
+        if (id.toString) return id.toString();
+        return String(id);
+      };
+      
+      const formProcessId = normalizeProcessId(formData.processId);
+      const matchingProcess = selectedProductData?.processes?.find(p => {
+        const processId = normalizeProcessId(p.processId);
+        return processId === formProcessId;
+      });
+      
+      const isFirstProcess = matchingProcess?.order === 1;
+      
+      // Debug logging for endpoint selection
+      console.log('🔍 Endpoint selection debug:', {
+        formProcessId,
+        matchingProcess,
+        isFirstProcess,
+        selectedProduct: selectedProductData?.name,
+        endpoint: isFirstProcess ? '/work-entries/direct' : '/work-entries/start'
+      });
       
       if (isFirstProcess) {
         // Call new direct work entry endpoint for first process stage
+        console.log('✅ Using DIRECT work entry endpoint for first process stage');
         try {
           const directWorkEntryData = {
             processId: formData.processId,
@@ -1070,7 +1122,11 @@ export default function EmployeeDashboard() {
             location: attendance?.checkIn?.location || undefined
           };
           
+          console.log('📤 Direct work entry request payload:', directWorkEntryData);
+          
           const response = await workEntryService.createDirectWorkEntry(directWorkEntryData);
+          
+          console.log('📥 Direct work entry response:', response);
           
           // The service now returns { data: WorkEntry } and validates the response
           // Extract work entry from response
@@ -1203,10 +1259,20 @@ export default function EmployeeDashboard() {
           
           return;
         } catch (error: any) {
-          console.error('Direct work entry error:', error);
-          toast.error('Failed to submit production. Please try again.');
+          console.error('❌ Direct work entry error:', {
+            error,
+            message: error?.message,
+            response: error?.response,
+            status: error?.status,
+            data: error?.data,
+            stack: error?.stack
+          });
+          const errorMessage = error?.message || error?.response?.data?.error || 'Failed to submit production. Please try again.';
+          toast.error(`Failed to submit production: ${errorMessage}`);
           return;
         }
+      } else {
+        console.log('✅ Using START work entry endpoint for non-first process stage');
       }
       
       // First start work to create a work entry
@@ -1384,7 +1450,20 @@ export default function EmployeeDashboard() {
         formData,
         user: user?.id,
         attendance: attendance?._id,
-        isFirstProcess: selectedProductData?.processes?.find(p => p.processId === formData.processId)?.order === 1
+        isFirstProcess: (() => {
+          const normalizeProcessId = (id: any): string => {
+            if (!id) return '';
+            if (typeof id === 'string') return id;
+            if (id.toString) return id.toString();
+            return String(id);
+          };
+          const formProcessId = normalizeProcessId(formData.processId);
+          const matchingProcess = selectedProductData?.processes?.find(p => {
+            const processId = normalizeProcessId(p.processId);
+            return processId === formProcessId;
+          });
+          return matchingProcess?.order === 1;
+        })()
       });
       toast.error(`Failed to submit production: ${error.message}`);
     } finally {

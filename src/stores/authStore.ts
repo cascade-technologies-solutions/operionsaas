@@ -114,10 +114,10 @@ export const useAuthStore = create<AuthState>()(
         
         // Create new refresh promise
         refreshPromise = (async () => {
-          try {
-            const response = await authService.getProfile();
-            
-            if (response.user) {
+        try {
+          const response = await authService.getProfile();
+          
+                      if (response.user) {
               // Merge with existing user data to preserve assigned processes
               set((state) => {
                 const updatedUser = state.user ? {
@@ -130,7 +130,7 @@ export const useAuthStore = create<AuthState>()(
                 return { user: updatedUser as User };
               });
             }
-          } catch (error) {
+        } catch (error) {
             // Handle authentication errors (404, 401) - clear auth state
             const isAuthError = error instanceof ApiError && 
               (error.status === 404 || error.status === 401);
@@ -157,7 +157,7 @@ export const useAuthStore = create<AuthState>()(
               console.error('⚠️ Network error during refresh (will retry):', error);
               // Don't clear auth on network errors - allow retry
             } else {
-              console.error('Failed to refresh user:', error);
+          console.error('Failed to refresh user:', error);
             }
             
             // Re-throw to allow caller to handle
@@ -201,7 +201,7 @@ export const useAuthStore = create<AuthState>()(
             
             // Try to fetch user data only if we don't have it
             if (!state.user) {
-              await get().refreshUser();
+            await get().refreshUser();
             }
           } catch (error) {
             console.error('❌ AuthStore - Token refresh failed:', error);
@@ -226,13 +226,13 @@ export const useAuthStore = create<AuthState>()(
             const isAuthError = error instanceof ApiError && 
               (error.status === 404 || error.status === 401);
             if (isAuthError) {
-              set({ 
-                user: null, 
-                accessToken: null, 
-                isAuthenticated: false,
-                deviceId: null,
-                isInitialized: true
-              });
+            set({ 
+              user: null, 
+              accessToken: null, 
+              isAuthenticated: false,
+              deviceId: null,
+              isInitialized: true
+            });
             }
           }
         } else if (state.accessToken && state.user && !state.isAuthenticated) {
