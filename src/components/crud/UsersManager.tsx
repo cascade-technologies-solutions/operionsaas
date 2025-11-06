@@ -175,7 +175,7 @@ export const UsersManager = () => {
       <div className="grid gap-4">
         {filteredUsers.map((user) => (
           <Card key={user.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 p-3 sm:p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -201,7 +201,7 @@ export const UsersManager = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 p-3 sm:p-6">
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -262,8 +262,8 @@ export const UsersManager = () => {
 
       {/* User Form Dialog */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-background border rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-background border rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <UserForm
               initialData={selectedUser}
               onSubmit={handleSubmit}

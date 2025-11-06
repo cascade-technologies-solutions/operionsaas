@@ -134,7 +134,7 @@ export const ProductsManager = () => {
       <div className="grid gap-4">
         {filteredProducts.map((product) => (
           <Card key={product.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 p-3 sm:p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <CardTitle className="text-lg">{product.name}</CardTitle>
@@ -152,7 +152,7 @@ export const ProductsManager = () => {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 p-3 sm:p-6">
               <div className="flex gap-2">
                 <Button
                   variant="outline"

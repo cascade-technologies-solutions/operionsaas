@@ -83,7 +83,7 @@ export const ProcessForm: React.FC<ProcessFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" aria-describedby="process-form-description">
+      <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="process-form-description">
         <DialogHeader>
           <DialogTitle>
             {process ? 'Edit Process' : 'Create Process'}
@@ -135,7 +135,7 @@ export const ProcessForm: React.FC<ProcessFormProps> = ({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="stage"

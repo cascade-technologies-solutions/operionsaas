@@ -157,23 +157,31 @@ const SuperAdminDashboard = () => {
 
         <TabsContent value="all" className="mt-6">
           <Card>
-            <div className="p-6">
+            <div className="p-3 sm:p-6">
               <h3 className="text-lg font-semibold mb-4">All Factories</h3>
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="overflow-x-auto -mx-3 sm:mx-0">
+                <div className="inline-block min-w-full align-middle px-3 sm:px-0">
+                  <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Factory Name</TableHead>
-                      <TableHead className="hidden md:table-cell">Location</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="min-w-[120px]">Factory Name</TableHead>
+                      <TableHead className="hidden md:table-cell min-w-[150px]">Location</TableHead>
+                      <TableHead className="min-w-[80px]">Plan</TableHead>
+                      <TableHead className="min-w-[80px]">Status</TableHead>
+                      <TableHead className="min-w-[100px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {factories.map((factory) => (
                       <TableRow key={factory.id}>
-                        <TableCell className="font-medium">{factory.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <span>{factory.name}</span>
+                            <span className="text-xs text-muted-foreground md:hidden mt-1">
+                              {factory.address.city}, {factory.address.state}
+                            </span>
+                          </div>
+                        </TableCell>
                         <TableCell className="hidden md:table-cell">
                           {factory.address.city}, {factory.address.state}
                         </TableCell>
@@ -202,7 +210,7 @@ const SuperAdminDashboard = () => {
                                   View
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl" aria-describedby="factory-details-description">
+                              <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="factory-details-description">
                                 <DialogHeader>
                                   <DialogTitle>{selectedFactory?.name}</DialogTitle>
                                   <DialogDescription id="factory-details-description">
@@ -281,6 +289,7 @@ const SuperAdminDashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             </div>
           </Card>

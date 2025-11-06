@@ -75,7 +75,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" aria-describedby="product-form-description">
+      <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="product-form-description">
         <DialogHeader>
           <DialogTitle>
             {product ? 'Edit Product' : 'Create Product'}

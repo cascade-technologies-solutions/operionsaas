@@ -427,7 +427,7 @@ const UserManagement = () => {
                 Add User
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="user-form-description">
+          <DialogContent className="w-[95vw] sm:w-full max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="user-form-description">
             <DialogHeader>
               <DialogTitle>
                 {editingUser ? 'Edit User' : 'Add New User'}
@@ -455,7 +455,7 @@ const UserManagement = () => {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name</Label>
                   <Input
@@ -519,7 +519,7 @@ const UserManagement = () => {
 
       {/* Generated Credentials Dialog */}
       <Dialog open={!!generatedCredentials} onOpenChange={() => setGeneratedCredentials(null)}>
-        <DialogContent className="max-w-md" aria-describedby="credentials-description">
+        <DialogContent className="w-[95vw] sm:w-full max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="credentials-description">
           <DialogHeader>
             <DialogTitle>User Credentials Generated</DialogTitle>
             <DialogDescription id="credentials-description">
@@ -582,7 +582,7 @@ const UserManagement = () => {
 
       {/* View User Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="user-details-description">
+        <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="user-details-description">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
             <DialogDescription id="user-details-description">

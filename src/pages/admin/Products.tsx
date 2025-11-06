@@ -591,7 +591,7 @@ const Products = () => {
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[90vh] flex flex-col w-[95vw] sm:w-full" aria-describedby="add-product-description">
+                <DialogContent className="max-h-[90vh] flex flex-col w-[95vw] sm:w-full max-w-lg" aria-describedby="add-product-description">
                   <DialogHeader>
                     <DialogTitle>Add New Product</DialogTitle>
                     <DialogDescription id="add-product-description">
@@ -802,7 +802,7 @@ const Products = () => {
                     Add Process Stages
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md w-[95vw] sm:w-full" aria-describedby="add-stages-description">
+                <DialogContent className="w-[95vw] sm:w-full max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="add-stages-description">
                   <DialogHeader>
                     <DialogTitle>Add Process Stages</DialogTitle>
                     <DialogDescription id="add-stages-description">
@@ -1247,7 +1247,7 @@ const Products = () => {
 
         {/* Edit Target Dialog */}
         <Dialog open={dailyTargetDialog} onOpenChange={setDailyTargetDialog}>
-          <DialogContent className="w-[95vw] sm:w-full">
+          <DialogContent className="w-[95vw] sm:w-full max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Daily Target</DialogTitle>
               <DialogDescription>

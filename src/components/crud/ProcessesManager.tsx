@@ -137,7 +137,7 @@ export const ProcessesManager = () => {
       <div className="grid gap-4">
         {filteredProcesses.map((process) => (
           <Card key={process.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 p-3 sm:p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -161,7 +161,7 @@ export const ProcessesManager = () => {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 p-3 sm:p-6">
               <div className="flex gap-2">
                 <Button
                   variant="outline"
