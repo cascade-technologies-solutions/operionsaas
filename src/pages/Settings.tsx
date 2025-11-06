@@ -25,7 +25,7 @@ import { authService } from '@/services/api';
 import { toast } from 'sonner';
 
 export default function Settings() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -63,6 +63,17 @@ export default function Settings() {
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
+
+  // Sync accountSettings when user changes
+  useEffect(() => {
+    if (user) {
+      setAccountSettings({
+        firstName: user.profile.firstName || '',
+        lastName: user.profile.lastName || '',
+        phone: user.profile.phone || '',
+      });
+    }
+  }, [user]);
 
   const checkPWAStatus = () => {
     const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
@@ -112,6 +123,15 @@ export default function Settings() {
         lastName: accountSettings.lastName,
         phone: accountSettings.phone,
       });
+
+      // Update the user in the store with the response
+      if (response.user) {
+        updateUser(response.user);
+      }
+      
+      // Refresh user data from server to ensure we have the latest and all fields are synced
+      const { refreshUser } = useAuthStore.getState();
+      await refreshUser();
 
       setSuccess('Account settings updated successfully');
       toast.success('Account settings saved');
