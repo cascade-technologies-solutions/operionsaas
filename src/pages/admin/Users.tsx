@@ -279,16 +279,19 @@ const UserManagement = () => {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this user?')) {
       try {
-        // API call would go here
-        setUsers(prev => prev.filter(u => u.id !== id));
+        await userService.deleteUser(id);
+        // Update local state after successful deletion
+        setUsers(prev => prev.filter(u => (u.id !== id && u._id !== id)));
         toast({
           title: 'Success',
           description: 'User deleted successfully',
         });
-      } catch (error) {
+      } catch (error: any) {
+        console.error('Delete user error:', error);
+        const errorMessage = error?.response?.data?.error || error?.message || 'Failed to delete user';
         toast({
           title: 'Error',
-          description: 'Failed to delete user',
+          description: errorMessage,
           variant: 'destructive',
         });
       }

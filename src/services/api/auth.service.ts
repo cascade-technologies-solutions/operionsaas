@@ -55,7 +55,10 @@ export const authService = {
 
   async updateProfile(profile: Partial<User['profile']>): Promise<{ user: User }> {
     const response = await apiClient.put('/auth/profile', { profile });
-    return response.data || response;
+    // Backend returns { success: true, data: user, status: 200 }
+    // Profile.tsx expects { user: User }
+    const userData = response.data || response;
+    return { user: userData };
   },
 
   async resetPasswordRequest(email: string): Promise<{ message: string }> {
@@ -69,7 +72,9 @@ export const authService = {
       { token, newPassword },
       { skipAuth: true }
     );
-    return response.data || response;
+    // Backend returns { success: true, message: 'Password reset successful', status: 200 }
+    // Return type expects { message: string }
+    return { message: response.message || 'Password reset successful' };
   },
 
   async updatePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {

@@ -212,10 +212,20 @@ export default function EmployeeAttendance() {
     }
   }, [user, loadTodayAttendance, loadAttendanceHistory, loadAllWorkEntries, loadMachines]);
 
-  // Calculate total work hours from today's completed work entries only
+  // Calculate total work hours - prioritize todayAttendance.workHours from backend, then work entries, then check-in/check-out times
   const calculateTotalWorkHours = useMemo(() => {
-    let totalHours = 0;
+    // First, check if todayAttendance has workHours from backend
+    if (todayAttendance?.workHours !== undefined && todayAttendance.workHours !== null) {
+      const apiWorkHours = typeof todayAttendance.workHours === 'string' 
+        ? parseFloat(todayAttendance.workHours) 
+        : Number(todayAttendance.workHours);
+      if (!isNaN(apiWorkHours) && isFinite(apiWorkHours) && apiWorkHours > 0) {
+        return Math.round(apiWorkHours * 100) / 100;
+      }
+    }
     
+    // Second, calculate from work entries (existing logic)
+    let totalHours = 0;
     todayWorkEntries.forEach(entry => {
       // Only calculate for completed entries (have end time)
       if (entry.startTime && entry.endTime) {
@@ -226,9 +236,19 @@ export default function EmployeeAttendance() {
         totalHours += hours;
       }
     });
-
-    return Math.round(totalHours * 100) / 100;
-  }, [todayWorkEntries]);
+    
+    if (totalHours > 0) {
+      return Math.round(totalHours * 100) / 100;
+    }
+    
+    // Third, fallback to check-in/check-out calculation
+    if (todayAttendance?.checkIn?.time && todayAttendance?.checkOut?.time) {
+      const calculated = calculateHours(todayAttendance.checkIn.time, todayAttendance.checkOut.time);
+      return Math.round(calculated * 100) / 100;
+    }
+    
+    return 0;
+  }, [todayAttendance, todayWorkEntries]);
 
   // Calculate total achieved and rejected quantities for the day
   const calculateTotalProduction = useMemo(() => {
@@ -538,14 +558,6 @@ export default function EmployeeAttendance() {
                           </div>
                         );
                       })}
-                      <div className="pt-4 border-t bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4 rounded-lg">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                          <span className="font-semibold text-base sm:text-lg">Total Work Hours Today:</span>
-                          <span className="text-xl sm:text-2xl font-bold text-primary">
-                            {formatWorkHours(calculateTotalWorkHours)}
-                          </span>
-                        </div>
-                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8">
