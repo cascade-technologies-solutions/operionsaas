@@ -190,7 +190,8 @@ const UserManagement = () => {
       return;
     }
     
-    if (!formData.password || formData.password.length < 6) {
+    // Password validation - Only required when creating new user
+    if (!editingUser && (!formData.password || formData.password.length < 6)) {
       toast({
         title: 'Error',
         description: 'Password must be at least 6 characters',
@@ -202,9 +203,8 @@ const UserManagement = () => {
     setLoading(true);
     
     try {
-      const userData = {
+      const userData: any = {
         role: formData.role,
-        password: formData.password,
         factoryId: user.factoryId,
         profile: {
           firstName: formData.firstName,
@@ -213,6 +213,11 @@ const UserManagement = () => {
         },
         isActive: true,
       };
+
+      // Only include password when creating new user
+      if (!editingUser && formData.password) {
+        userData.password = formData.password;
+      }
 
 
 
@@ -485,17 +490,20 @@ const UserManagement = () => {
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Enter login password"
-                  required
-                />
-              </div>
+              {/* Password field - Only show when creating new user, not when editing */}
+              {!editingUser && (
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Enter login password"
+                    required
+                  />
+                </div>
+              )}
 
 
               <div className="flex gap-2">

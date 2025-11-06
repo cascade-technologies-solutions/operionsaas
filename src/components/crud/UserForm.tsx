@@ -155,7 +155,6 @@ export const UserForm: React.FC<UserFormProps> = ({
       role: selectedRole,
       factoryId,
       id: initialData?.id || initialData?._id || '',
-      assignedProcesses: selectedProcesses,
       profile: {
         firstName: data.profile.firstName,
         lastName: data.profile.lastName,
@@ -166,11 +165,15 @@ export const UserForm: React.FC<UserFormProps> = ({
       updatedAt: new Date(),
     };
 
-    // Only include password if it's provided and not empty
-    if (data.password && data.password.trim().length > 0) {
-      submissionData.password = data.password;
+    // Only include assignedProcesses when creating new user (not when editing)
+    if (!initialData) {
+      submissionData.assignedProcesses = selectedProcesses;
     }
 
+    // Only include password if it's provided and not empty (only when creating)
+    if (!initialData && data.password && data.password.trim().length > 0) {
+      submissionData.password = data.password;
+    }
 
     await onSubmit(submissionData);
   };
@@ -309,8 +312,8 @@ export const UserForm: React.FC<UserFormProps> = ({
               />
             )}
 
-            {/* Process Assignment - Only show for employees and not when restricted */}
-            {(selectedRole === 'employee' || (initialData && initialData.role === 'employee')) && !restrictRoleToEmployee && (
+            {/* Process Assignment - Only show for employees when creating new user, not when editing */}
+            {(selectedRole === 'employee' || (initialData && initialData.role === 'employee')) && !restrictRoleToEmployee && !initialData && (
               <FormField
                 control={form.control}
                 name="assignedProcesses"
