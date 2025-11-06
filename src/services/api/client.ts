@@ -209,6 +209,22 @@ class ApiClient {
     }
   }
 
+  private async ensureCsrfToken(): Promise<void> {
+    // If CSRF token is missing, try to fetch it
+    if (!this.getCsrfToken()) {
+      try {
+        const baseUrl = getBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
+        await fetch(`${baseUrl}/api/csrf-token`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+      } catch (error) {
+        // Silently fail - will be handled by CSRF error retry logic
+        console.debug('Failed to fetch CSRF token:', error);
+      }
+    }
+  }
+
   private getHeaders(config?: RequestConfig): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -227,6 +243,9 @@ class ApiClient {
       const csrfToken = this.getCsrfToken();
       if (csrfToken) {
         headers['X-XSRF-TOKEN'] = csrfToken;
+        console.debug('CSRF token added to request headers');
+      } else {
+        console.warn('CSRF token missing for state-changing request:', config.method);
       }
     }
 
@@ -241,9 +260,12 @@ class ApiClient {
     for (const cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
       if (name === 'XSRF-TOKEN') {
-        return decodeURIComponent(value);
+        const token = decodeURIComponent(value);
+        console.debug('CSRF token found in cookie');
+        return token;
       }
     }
+    console.debug('CSRF token not found in cookies');
     return null;
   }
 
@@ -282,6 +304,11 @@ class ApiClient {
       if (cachedData) {
         return cachedData;
       }
+    }
+
+    // Ensure CSRF token is available for state-changing requests
+    if (config?.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(config.method) && !config?.skipAuth) {
+      await this.ensureCsrfToken();
     }
 
     const url = this.buildURL(endpoint, config?.params);
@@ -468,12 +495,16 @@ class ApiClient {
                   credentials: 'include',
                 });
                 
+                // Regenerate headers with new CSRF token
+                requestConfig.headers = this.getHeaders(config);
+                
                 // Retry the request with new CSRF token
-                await this.delay(100); // Small delay to ensure cookie is set
+                await this.delay(200); // Small delay to ensure cookie is set
                 continue; // Retry the request
               } catch (csrfError) {
                 // If CSRF token refresh fails, throw the original error
                 console.warn('Failed to refresh CSRF token:', csrfError);
+                throw apiError;
               }
             }
             // If retry failed or already retried, throw the error
