@@ -456,8 +456,32 @@ class ApiClient {
             response
           );
           
-          // Don't retry on authentication errors
-          if (response.status === 401 || response.status === 403) {
+          // Handle CSRF token errors (403) - try to refresh token and retry once
+          if (response.status === 403 && errorData.error && errorData.error.includes('CSRF')) {
+            // Only retry once for CSRF errors
+            if (attempt === 0) {
+              try {
+                // Fetch new CSRF token
+                const baseUrl = getBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
+                await fetch(`${baseUrl}/api/csrf-token`, {
+                  method: 'GET',
+                  credentials: 'include',
+                });
+                
+                // Retry the request with new CSRF token
+                await this.delay(100); // Small delay to ensure cookie is set
+                continue; // Retry the request
+              } catch (csrfError) {
+                // If CSRF token refresh fails, throw the original error
+                console.warn('Failed to refresh CSRF token:', csrfError);
+              }
+            }
+            // If retry failed or already retried, throw the error
+            throw apiError;
+          }
+          
+          // Don't retry on authentication errors (401) or other 403 errors
+          if (response.status === 401 || (response.status === 403 && !errorData.error?.includes('CSRF'))) {
             throw apiError;
           }
           

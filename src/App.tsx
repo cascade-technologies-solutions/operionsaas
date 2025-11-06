@@ -168,7 +168,28 @@ const App = () => {
       }
     };
 
+    // Fetch CSRF token on app initialization
+    const fetchCsrfToken = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:3000/api');
+        const baseUrl = apiUrl.startsWith('/') ? '' : apiUrl.replace(/\/api\/?$/, '');
+        const csrfUrl = `${baseUrl}/api/csrf-token`;
+        
+        await fetch(csrfUrl, {
+          method: 'GET',
+          credentials: 'include', // Include cookies
+        });
+        // CSRF token is set in cookie by backend, no need to handle response
+      } catch (error) {
+        // Silently fail - CSRF token will be fetched on first API call
+        console.debug('CSRF token fetch failed (will retry on first API call):', error);
+      }
+    };
+
     initializeDeviceId();
+    
+    // Fetch CSRF token first, then initialize auth
+    fetchCsrfToken();
     
     // Initialize auth and wait for it to complete
     setIsAuthInitializing(true);
