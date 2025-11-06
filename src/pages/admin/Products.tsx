@@ -138,13 +138,31 @@ const Products = () => {
         processService.getProcesses(),
       ]);
       
+      // Debug logging to understand the response structure
+      console.log('🔍 Product data received:', productData);
+      console.log('🔍 Product data type:', typeof productData);
+      console.log('🔍 Is productData.data an array?', Array.isArray(productData?.data));
+      console.log('🔍 productData.data:', productData?.data);
+      
       // productService.getProducts() returns { data: Product[] }
       // So we need to access productData.data to get the array
-      const productsArray = Array.isArray(productData?.data) 
-        ? productData.data 
-        : Array.isArray(productData) 
-          ? productData 
-          : (productData as any)?.products || (productData as any)?.data?.products || [];
+      let productsArray: Product[] = [];
+      
+      if (Array.isArray(productData?.data)) {
+        productsArray = productData.data;
+      } else if (Array.isArray(productData)) {
+        productsArray = productData;
+      } else if ((productData as any)?.products && Array.isArray((productData as any).products)) {
+        productsArray = (productData as any).products;
+      } else if ((productData as any)?.data?.products && Array.isArray((productData as any).data.products)) {
+        productsArray = (productData as any).data.products;
+      } else {
+        console.warn('⚠️ Could not extract products array from:', productData);
+        productsArray = [];
+      }
+      
+      console.log('✅ Extracted products array:', productsArray);
+      console.log('✅ Products count:', productsArray.length);
       
       // processService.getProcesses() may return different structures
       const processesArray = Array.isArray(processData?.processes)

@@ -7,16 +7,27 @@ export const productService = {
     // Pass limit=100 to fetch all products (backend default is 10)
     const response = await apiClient.get('/products', { limit: 100 });
     
+    // Debug logging to understand the response structure
+    console.log('🔍 Raw API response:', response);
+    console.log('🔍 Response keys:', Object.keys(response || {}));
+    console.log('🔍 response.data:', (response as any)?.data);
+    console.log('🔍 response.data?.products:', (response as any)?.data?.products);
+    
     // Handle different response formats
-    if (response.data?.data?.products) {
-      return { data: response.data.data.products };
-    } else if (response.data?.products) {
-      return { data: response.data.products };
-    } else if (Array.isArray(response.data)) {
-      return { data: response.data };
+    if ((response as any)?.data?.data?.products) {
+      console.log('✅ Using response.data.data.products');
+      return { data: (response as any).data.data.products };
+    } else if ((response as any)?.data?.products) {
+      console.log('✅ Using response.data.products');
+      return { data: (response as any).data.products };
+    } else if (Array.isArray((response as any)?.data)) {
+      console.log('✅ Using response.data as array');
+      return { data: (response as any).data };
     } else if (Array.isArray(response)) {
+      console.log('✅ Using response as array');
       return { data: response };
     } else {
+      console.warn('⚠️ No products found in response, returning empty array');
       return { data: [] };
     }
   },
