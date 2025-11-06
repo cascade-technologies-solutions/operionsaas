@@ -465,8 +465,9 @@ export default function EmployeeDashboard() {
       // Refresh quantity status if process and product are selected
       if (selectedProcess && selectedProduct) {
         // Add small delay to ensure backend has processed the update
+        // Use skipCache=true to bypass API cache and get fresh data
         setTimeout(() => {
-          loadProcessQuantityStatus(selectedProcess).catch(err => {
+          loadProcessQuantityStatus(selectedProcess, true).catch(err => {
             console.error('Failed to refresh quantity status after WebSocket update:', err);
           });
         }, 500);
@@ -634,11 +635,15 @@ export default function EmployeeDashboard() {
   };
 
   // Load quantity status for selected process
-  const loadProcessQuantityStatus = async (processId: string) => {
+  const loadProcessQuantityStatus = async (processId: string, skipCache: boolean = false) => {
     try {
       // Always call backend to get accurate ProcessStage data
-      const response = await processService.getQuantityStatus(processId, selectedProduct);
-      setProcessQuantityStatus(response.data || response);
+      // Use skipCache parameter to bypass API cache when refreshing after work entry submission
+      const response = await processService.getQuantityStatus(processId, selectedProduct, skipCache);
+      
+      // Handle nested response structure: response.data.data or response.data or response
+      const statusData = response?.data?.data || response?.data || response;
+      setProcessQuantityStatus(statusData);
     } catch (error) {
       console.error('Failed to load quantity status:', error);
       // Set safe default instead of null to prevent UI issues
@@ -1624,14 +1629,17 @@ export default function EmployeeDashboard() {
           
           // Refresh process quantity status to update Process Status card
           // Retry logic to handle potential race conditions
+          // Increased wait time to ensure backend processing completes
           if (selectedProcess && selectedProduct) {
             let retries = 3;
             let lastError = null;
             
             while (retries > 0) {
               try {
-                await new Promise(resolve => setTimeout(resolve, 300)); // Wait for backend processing
-                await loadProcessQuantityStatus(selectedProcess);
+                // Increased wait time from 300ms to 1000ms to ensure backend processing completes
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Use skipCache=true to bypass API cache and get fresh data
+                await loadProcessQuantityStatus(selectedProcess, true);
                 console.log('✅ Process quantity status refreshed');
                 break;
               } catch (refreshError) {
@@ -1652,7 +1660,7 @@ export default function EmployeeDashboard() {
           console.error('❌ Failed to reload dashboard data:', reloadError);
           // Don't show error to user - optimistic update already happened
         }
-      }, 300);
+      }, 1000); // Increased initial delay from 300ms to 1000ms
       
     } catch (error: any) {
       console.error('❌ Production submission error:', {

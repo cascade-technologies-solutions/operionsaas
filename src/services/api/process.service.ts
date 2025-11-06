@@ -61,8 +61,16 @@ export const processService = {
     return response.data || response;
   },
 
-  async getQuantityStatus(processId: string, productId?: string): Promise<any> {
-    const url = `/processes/${processId}/quantity-status${productId ? `?productId=${productId}` : ''}`;
+  async getQuantityStatus(processId: string, productId?: string, skipCache?: boolean): Promise<any> {
+    const params = new URLSearchParams();
+    if (productId) {
+      params.append('productId', productId);
+    }
+    if (skipCache) {
+      params.append('_t', Date.now().toString());
+    }
+    const queryString = params.toString();
+    const url = `/processes/${processId}/quantity-status${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get(url);
     return response.data || response;
   },
