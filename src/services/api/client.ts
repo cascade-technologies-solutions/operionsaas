@@ -512,6 +512,10 @@ class ApiClient {
             errorMessage = 'Bad gateway - Backend server may be restarting or misconfigured.';
           } else if (response.status === 504) {
             errorMessage = 'Gateway timeout - Backend server took too long to respond.';
+          } else if (response.status === 409) {
+            // 409 Conflict - resource already exists or conflicts with existing data
+            // Use the error message from the API response
+            errorMessage = errorData.error || errorData.message || 'Resource already exists or conflicts with existing data';
           }
           
           const apiError = new ApiError(
@@ -568,7 +572,7 @@ class ApiClient {
             throw apiError;
           }
           
-          // Don't retry on client errors (4xx) except for rate limiting
+          // Don't retry on client errors (4xx) including 409 Conflict - these are not retryable
           if (response.status >= 400 && response.status < 500 && response.status !== 429) {
             throw apiError;
           }

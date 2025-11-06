@@ -166,6 +166,12 @@ const Products = () => {
   // Product Management
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (createProduct.isPending) {
+      return;
+    }
+    
     try {
       const processes = productForm.selectedProcesses.map((processId, index) => ({
         processId,
@@ -217,6 +223,12 @@ const Products = () => {
 
   const handleCreateProcess = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (createProcess.isPending) {
+      return;
+    }
+    
     try {
       // Create multiple processes
       const validStages = processForm.stages.filter(stage => stage.name.trim());
@@ -651,14 +663,15 @@ const Products = () => {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4 pt-4 border-t">
-                      <Button type="submit" className="flex-1">
-                        Create Product
+                      <Button type="submit" className="flex-1" disabled={createProduct.isPending}>
+                        {createProduct.isPending ? 'Creating...' : 'Create Product'}
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => setProductDialog(false)}
                         className="flex-1"
+                        disabled={createProduct.isPending}
                       >
                         Cancel
                       </Button>
@@ -786,14 +799,15 @@ const Products = () => {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button type="submit" className="flex-1">
-                        Save All Process Stages
+                      <Button type="submit" className="flex-1" disabled={createProcess.isPending}>
+                        {createProcess.isPending ? 'Saving...' : 'Save All Process Stages'}
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => setProcessDialog(false)}
                         className="flex-1"
+                        disabled={createProcess.isPending}
                       >
                         Cancel
                       </Button>

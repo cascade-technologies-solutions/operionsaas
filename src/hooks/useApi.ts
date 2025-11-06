@@ -39,8 +39,10 @@ export const useCreateProduct = () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId!) });
       toast.success('Product created successfully');
     },
-    onError: () => {
-      toast.error('Failed to create product');
+    onError: (error: any) => {
+      // Extract specific error message from API response
+      const errorMessage = error?.responseData?.error || error?.message || 'Failed to create product';
+      toast.error(errorMessage);
     },
   });
 };
@@ -119,8 +121,10 @@ export const useCreateProcess = () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId!) });
       toast.success('Process created successfully');
     },
-    onError: () => {
-      toast.error('Failed to create process');
+    onError: (error: any) => {
+      // Extract specific error message from API response
+      const errorMessage = error?.responseData?.error || error?.message || 'Failed to create process';
+      toast.error(errorMessage);
     },
   });
 };
