@@ -4,16 +4,34 @@ import { apiClient } from './client';
 
 export const productService = {
   async getProducts(): Promise<{ data: Product[] }> {
+    // Clear cache for products to ensure fresh data
+    // This prevents stale/cached data from other endpoints
+    if (typeof (apiClient as any).clearCache === 'function') {
+      (apiClient as any).clearCache('/products');
+    }
+    
     // Pass limit=100 to fetch all products (backend default is 10)
-    const response = await apiClient.get('/products', { limit: 100 });
+    // Add timestamp to ensure fresh request (bypasses any remaining cache)
+    const timestamp = Date.now();
+    console.log('🔍 Calling apiClient.get("/products", { limit: 100, _t: timestamp })');
+    const response = await apiClient.get('/products', { limit: 100, _t: timestamp });
     
     // Debug logging to understand the response structure
     console.log('🔍 Raw API response:', response);
+    console.log('🔍 Response message:', (response as any)?.message);
     console.log('🔍 Response keys:', Object.keys(response || {}));
     console.log('🔍 response.data:', (response as any)?.data);
     console.log('🔍 response.data?.products:', (response as any)?.data?.products);
+    console.log('🔍 response.data?.processes:', (response as any)?.data?.processes);
     
-    // Handle different response formats
+    // Check if we got the wrong response (processes instead of products)
+    if ((response as any)?.message?.includes('Processes')) {
+      console.error('❌ ERROR: Received processes response instead of products!');
+      console.error('❌ This suggests a cache issue or wrong endpoint');
+      return { data: [] };
+    }
+    
+    // Handle different response formats - backend returns: { success: true, data: { products: [...], pagination: {...} } }
     if ((response as any)?.data?.data?.products) {
       console.log('✅ Using response.data.data.products');
       return { data: (response as any).data.data.products };
@@ -28,6 +46,7 @@ export const productService = {
       return { data: response };
     } else {
       console.warn('⚠️ No products found in response, returning empty array');
+      console.warn('⚠️ Full response:', JSON.stringify(response, null, 2));
       return { data: [] };
     }
   },
