@@ -20,12 +20,60 @@ export const workEntryService = {
 
   async startWork(data: Partial<WorkEntry>): Promise<{ data: WorkEntry }> {
     const response = await apiClient.post('/work-entries/start', data);
-    return response.data || response;
+    
+    // Backend returns { success: true, message: '...', status: 201, data: WorkEntry }
+    // Extract work entry from response
+    const responseData = response.data || response;
+    
+    // Check if response indicates failure
+    if (responseData && typeof responseData === 'object' && 'success' in responseData && responseData.success === false) {
+      const errorMessage = responseData.error || 'Failed to start work entry';
+      throw new Error(errorMessage);
+    }
+    
+    // Extract work entry data from response
+    const workEntryData = responseData?.data || responseData;
+    
+    // Validate work entry data exists
+    if (!workEntryData || typeof workEntryData !== 'object') {
+      throw new Error('Invalid response: work entry data not found');
+    }
+    
+    // Validate work entry has ID
+    if (!('_id' in workEntryData) && !('id' in workEntryData)) {
+      throw new Error('Invalid response: work entry ID not found');
+    }
+    
+    return { data: workEntryData as WorkEntry };
   },
 
   async completeWork(id: string, data: Partial<WorkEntry>): Promise<{ data: WorkEntry }> {
     const response = await apiClient.post(`/work-entries/complete/${id}`, data);
-    return response.data || response;
+    
+    // Backend returns { success: true, message: '...', status: 200, data: WorkEntry }
+    // Extract work entry from response
+    const responseData = response.data || response;
+    
+    // Check if response indicates failure
+    if (responseData && typeof responseData === 'object' && 'success' in responseData && responseData.success === false) {
+      const errorMessage = responseData.error || 'Failed to complete work entry';
+      throw new Error(errorMessage);
+    }
+    
+    // Extract work entry data from response
+    const workEntryData = responseData?.data || responseData;
+    
+    // Validate work entry data exists
+    if (!workEntryData || typeof workEntryData !== 'object') {
+      throw new Error('Invalid response: work entry data not found');
+    }
+    
+    // Validate work entry has ID
+    if (!('_id' in workEntryData) && !('id' in workEntryData)) {
+      throw new Error('Invalid response: work entry ID not found');
+    }
+    
+    return { data: workEntryData as WorkEntry };
   },
 
   async createWorkEntry(data: Partial<WorkEntry>): Promise<{ data: WorkEntry }> {

@@ -1343,17 +1343,17 @@ export default function EmployeeDashboard() {
       });
       
       // Extract work entry ID from start response
-      // startWork service returns { data: WorkEntry }
-      let workEntryId: string | null = null;
+      // startWork service now returns { data: WorkEntry }
+      const startWorkEntry = startResponse?.data;
       
-      if (startResponse && typeof startResponse === 'object' && 'data' in startResponse) {
-        const startData = startResponse.data;
-        if (startData && typeof startData === 'object') {
-          workEntryId = startData._id || startData.id || null;
-        }
-      } else if (startResponse && typeof startResponse === 'object' && '_id' in startResponse) {
-        workEntryId = (startResponse as any)._id;
+      if (!startWorkEntry || typeof startWorkEntry !== 'object') {
+        console.error('❌ Invalid start work response:', startResponse);
+        toast.error('Failed to start work entry. Invalid response from server.');
+        setLoading(false);
+        return;
       }
+      
+      const workEntryId = startWorkEntry._id || startWorkEntry.id;
       
       if (!workEntryId) {
         console.error('❌ Failed to extract work entry ID from start response:', startResponse);
@@ -1382,24 +1382,8 @@ export default function EmployeeDashboard() {
       });
       
       // Extract work entry from response
-      // completeWork service returns { data: WorkEntry } or { data: { success, data: WorkEntry } }
-      let updatedWorkEntry: any = null;
-      
-      if (response && typeof response === 'object') {
-        if ('data' in response) {
-          const responseData = response.data;
-          // Check if responseData has nested data (from API client wrapper)
-          if (responseData && typeof responseData === 'object' && 'data' in responseData) {
-            updatedWorkEntry = responseData.data;
-          } else {
-            // Direct data property
-            updatedWorkEntry = responseData;
-          }
-        } else {
-          // Response itself might be the work entry
-          updatedWorkEntry = response;
-        }
-      }
+      // completeWork service now returns { data: WorkEntry }
+      const updatedWorkEntry = response?.data;
       
       console.log('📦 Extracted work entry:', {
         updatedWorkEntry,
