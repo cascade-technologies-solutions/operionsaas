@@ -1552,6 +1552,12 @@ export default function EmployeeDashboard() {
         try {
           await loadDashboardData();
           console.log('✅ Dashboard data reloaded after work entry submission');
+          
+          // Refresh process quantity status to update Process Status card
+          if (selectedProcess) {
+            await loadProcessQuantityStatus(selectedProcess);
+            console.log('✅ Process quantity status refreshed');
+          }
         } catch (reloadError) {
           console.error('❌ Failed to reload dashboard data:', reloadError);
           // Don't show error to user - optimistic update already happened
