@@ -2052,7 +2052,7 @@ export default function EmployeeDashboard() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-medium">Check-in Time:</span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-gray-700">
                         {attendance.checkIn?.time ? 
                           new Date(attendance.checkIn.time).toLocaleString('en-US', {
                             hour: 'numeric',
@@ -2065,7 +2065,7 @@ export default function EmployeeDashboard() {
                     {attendance.checkOut?.time && (
                       <div className="flex items-center justify-between">
                         <span className="font-medium">Check-out Time:</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm text-gray-700">
                           {new Date(attendance.checkOut.time).toLocaleString('en-US', {
                             hour: 'numeric',
                             minute: '2-digit',
@@ -2078,19 +2078,19 @@ export default function EmployeeDashboard() {
                 )}
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Total Work Hours:</span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-gray-700">
                     {formatWorkHours(calculateTotalWorkHours)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Work Entries:</span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-gray-700">
                     {getTodayWorkSummary.totalEntries} today
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Products Used:</span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-gray-700">
                     {getTodayWorkSummary.uniqueProducts && getTodayWorkSummary.uniqueProducts.length > 0 ? 
                       getTodayWorkSummary.uniqueProducts.join(', ') : 
                       'None'}
@@ -2098,7 +2098,7 @@ export default function EmployeeDashboard() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Machines Used:</span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-gray-700">
                     {getTodayWorkSummary.uniqueMachines.length > 0 ? 
                       getTodayWorkSummary.uniqueMachines.join(', ') : 
                       'None'}
@@ -2126,7 +2126,7 @@ export default function EmployeeDashboard() {
                         <div key={index} className="bg-gray-50 p-2 rounded text-sm">
                           <div className="flex justify-between items-center">
                             <span className="font-medium">{stat.machine}</span>
-                            <span className="text-xs text-muted-foreground">{stat.entries} entries</span>
+                            <span className="text-xs text-gray-700">{stat.entries} entries</span>
                           </div>
                           <div className="flex justify-between text-xs mt-1">
                             <span className="text-green-600">✓ {stat.achieved}</span>
@@ -2146,7 +2146,7 @@ export default function EmployeeDashboard() {
                       {getTodayWorkSummary.processSummary.map((stat, index) => (
                         <div key={index} className="bg-gray-50 p-2 rounded text-sm">
                           <div className="font-medium">{stat.processName}</div>
-                          <div className="text-xs text-muted-foreground">{stat.productName}</div>
+                          <div className="text-xs text-gray-700 font-medium">{stat.productName}</div>
                           <div className="flex justify-between text-xs mt-1">
                             <span className="text-green-600">Achieved: {stat.achieved}</span>
                             <span className="text-red-600">Rejected: {stat.rejected}</span>
