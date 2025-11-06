@@ -403,7 +403,7 @@ export default function EmployeeAttendance() {
                              todayAttendance?.status === 'half-day' ? 'Half Day' : 
                              todayAttendance?.status || 'Present') : 'Not Marked'}
                 </p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-gray-700 mt-1">
                   {isMarked && todayAttendance?.checkIn 
                     ? `Check-in: ${formatTime(todayAttendance.checkIn.time)}`
                     : 'No check-in today'
@@ -418,7 +418,7 @@ export default function EmployeeAttendance() {
                 <p className="text-xl sm:text-2xl font-bold text-primary">
                   {formatWorkHours(calculateTotalWorkHours)}
                 </p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Total Hours</p>
+                <p className="text-xs sm:text-sm text-gray-700">Total Hours</p>
               </div>
               
               <div className="text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm">
@@ -428,7 +428,7 @@ export default function EmployeeAttendance() {
                 <p className="text-xl sm:text-2xl font-bold text-green-600">
                   {calculateTotalProduction.achieved}
                 </p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Achieved</p>
+                <p className="text-xs sm:text-sm text-gray-700">Achieved</p>
               </div>
               
               <div className="text-center p-3 sm:p-4 bg-white rounded-lg shadow-sm">
@@ -438,7 +438,7 @@ export default function EmployeeAttendance() {
                 <p className="text-xl sm:text-2xl font-bold text-orange-600">
                   {todayWorkEntries.length}
                 </p>
-                <p className="text-xs sm:text-sm text-muted-foreground">Work Entries</p>
+                <p className="text-xs sm:text-sm text-gray-700">Work Entries</p>
               </div>
             </div>
           </CardContent>
@@ -529,16 +529,16 @@ export default function EmployeeAttendance() {
                             {/* Responsive grid - stacks on mobile */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
                               <div className="bg-white p-2 rounded border">
-                                <span className="text-muted-foreground">Machine:</span> <span className="font-medium">{getMachineName(entry.machineCode || '')}</span>
+                                <span className="text-gray-700">Machine:</span> <span className="font-medium text-gray-900">{getMachineName(entry.machineCode || '')}</span>
                               </div>
                               <div className="bg-white p-2 rounded border">
-                                <span className="text-muted-foreground">Target:</span> <span className="font-medium">{entry.targetQuantity}</span>
+                                <span className="text-gray-700">Target:</span> <span className="font-medium text-gray-900">{entry.targetQuantity}</span>
                               </div>
                               <div className="bg-white p-2 rounded border">
-                                <span className="text-muted-foreground">Started:</span> <span className="font-medium">{entry.startTime ? formatTime(entry.startTime) : 'N/A'}</span>
+                                <span className="text-gray-700">Started:</span> <span className="font-medium text-gray-900">{entry.startTime ? formatTime(entry.startTime) : 'N/A'}</span>
                               </div>
                               <div className="bg-white p-2 rounded border">
-                                <span className="text-muted-foreground">Ended:</span> <span className="font-medium">{(entry.achieved > 0 || entry.rejected > 0) ? formatTime(entry.endTime) : 'In Progress'}</span>
+                                <span className="text-gray-700">Ended:</span> <span className="font-medium text-gray-900">{(entry.achieved > 0 || entry.rejected > 0) ? formatTime(entry.endTime) : 'In Progress'}</span>
                               </div>
                               {entry.endTime && entry.startTime && (
                                 <div className="bg-blue-50 p-2 rounded border border-blue-200">
