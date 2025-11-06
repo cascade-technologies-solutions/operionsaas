@@ -283,16 +283,16 @@ export default function EmployeeManagement() {
                     </div>
                     <div className="flex justify-end">
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
                         onClick={() => {
                           setSelectedUser(employee);
                           setIsDetailsDialogOpen(true);
                         }}
-                        className="w-full sm:w-auto min-w-[120px]"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                        title="View Details"
                       >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
+                        <Eye className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>

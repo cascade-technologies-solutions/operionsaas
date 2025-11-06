@@ -228,7 +228,7 @@ export const UserDetails: React.FC<UserDetailsProps> = ({
               )}
             </Button>
           )}
-          {onResetDevice && (user._id || user.id) && (
+          {onResetDevice && (user._id || user.id) && user.deviceId && (
             <Button
               variant="outline"
               onClick={handleResetDevice}
