@@ -84,16 +84,21 @@ export const processService = {
   },
 
   async getQuantityStatus(processId: string, productId?: string, skipCache?: boolean): Promise<any> {
-    const params = new URLSearchParams();
+    // Clear cache for quantity status to ensure fresh data
+    if (typeof (apiClient as any).clearCache === 'function') {
+      (apiClient as any).clearCache('/processes');
+    }
+    
+    const params: Record<string, any> = {};
     if (productId) {
-      params.append('productId', productId);
+      params.productId = productId;
     }
     if (skipCache) {
-      params.append('_t', Date.now().toString());
+      params._t = Date.now().toString();
     }
-    const queryString = params.toString();
-    const url = `/processes/${processId}/quantity-status${queryString ? `?${queryString}` : ''}`;
-    const response = await apiClient.get(url);
+    
+    console.log('🔍 Calling apiClient.get("/processes/' + processId + '/quantity-status", params)');
+    const response = await apiClient.get(`/processes/${processId}/quantity-status`, params);
     return response.data || response;
   },
 

@@ -92,32 +92,43 @@ export const workEntryService = {
   },
 
   async getWorkEntriesByEmployee(employeeId: string, params?: { today?: string; startDate?: string; endDate?: string; status?: string; page?: number; limit?: number; skipCache?: boolean }): Promise<{ data: WorkEntry[] }> {
-    const queryParams = new URLSearchParams();
-    if (params?.today) queryParams.append('today', params.today);
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    // Add timestamp query parameter to bypass frontend cache when skipCache is true
-    if (params?.skipCache) {
-      queryParams.append('_t', Date.now().toString());
+    // Clear cache for work entries to ensure fresh data
+    if (typeof (apiClient as any).clearCache === 'function') {
+      (apiClient as any).clearCache('/work-entries/employee');
     }
     
-    const url = `/work-entries/employee/${employeeId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-    const response = await apiClient.get(url);
+    // Build params object for apiClient.get() instead of query string
+    const apiParams: Record<string, any> = {};
+    if (params?.today) apiParams.today = params.today;
+    if (params?.startDate) apiParams.startDate = params.startDate;
+    if (params?.endDate) apiParams.endDate = params.endDate;
+    if (params?.status) apiParams.status = params.status;
+    if (params?.page) apiParams.page = params.page.toString();
+    if (params?.limit) apiParams.limit = params.limit.toString();
+    // Add timestamp query parameter to bypass frontend cache when skipCache is true
+    if (params?.skipCache) {
+      apiParams._t = Date.now().toString();
+    }
+    
+    console.log('🔍 Calling apiClient.get("/work-entries/employee/' + employeeId + '", params)');
+    const response = await apiClient.get(`/work-entries/employee/${employeeId}`, apiParams);
+    
+    console.log('🔍 Raw API response (work entries):', response);
+    console.log('🔍 Response message:', (response as any)?.message);
     
     // The backend returns { success: true, data: { workEntries: [...], pagination: {...} } }
     // or { success: true, data: [...] } in some cases
-    const responseData = response.data || response;
+    const responseData = (response as any)?.data || response;
     
     // Handle nested response structure: response.data.data.workEntries
     if (responseData && typeof responseData === 'object' && 'data' in responseData) {
       const nestedData = responseData.data;
       if (nestedData && typeof nestedData === 'object') {
         if ('workEntries' in nestedData && Array.isArray(nestedData.workEntries)) {
+          console.log('✅ Using response.data.data.workEntries');
           return { data: nestedData.workEntries };
         } else if (Array.isArray(nestedData)) {
+          console.log('✅ Using response.data.data as array');
           return { data: nestedData };
         }
       }
@@ -127,12 +138,14 @@ export const workEntryService = {
     if (responseData && typeof responseData === 'object' && 'workEntries' in responseData) {
       const workEntries = (responseData as any).workEntries;
       if (Array.isArray(workEntries)) {
+        console.log('✅ Using response.data.workEntries');
         return { data: workEntries };
       }
     }
     
     // Handle direct array response
     if (Array.isArray(responseData)) {
+      console.log('✅ Using response.data as array');
       return { data: responseData };
     }
     

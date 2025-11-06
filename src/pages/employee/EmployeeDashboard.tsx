@@ -1344,14 +1344,25 @@ export default function EmployeeDashboard() {
           // Keep Product, Process, Machine, and Shift selections
           
           // Immediately reload work entries to ensure UI shows the new entry
-          // This doesn't set loading state, so UI won't be disrupted
+          // Pass skipCache=true to bypass cache and get fresh data
           try {
-            console.log('🔄 Reloading work entries immediately after direct submission...');
-            await loadAllWorkEntries();
+            console.log('🔄 Reloading work entries immediately after direct submission (skipCache=true)...');
+            await loadAllWorkEntries(true);
             console.log('✅ Work entries reloaded immediately');
           } catch (reloadError) {
             console.error('❌ Failed to reload work entries immediately:', reloadError);
             // Don't show error to user - will retry with loadDashboardData
+          }
+          
+          // Also refresh process quantity status if a process is selected
+          if (selectedProcess) {
+            try {
+              console.log('🔄 Reloading process quantity status after submission (skipCache=true)...');
+              await loadProcessQuantityStatus(selectedProcess, true);
+              console.log('✅ Process quantity status reloaded');
+            } catch (statusError) {
+              console.error('❌ Failed to reload process quantity status:', statusError);
+            }
           }
           
           // Then reload full dashboard data from server to ensure consistency
