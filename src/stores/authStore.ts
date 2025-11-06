@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types';
 import { authService } from '@/services/api';
+import { ApiError } from '@/services/api/client';
 
 interface AuthState {
   user: User | null;
@@ -20,6 +21,12 @@ interface AuthState {
   setInitialized: (initialized: boolean) => void;
   clearInvalidAuth: () => void;
 }
+
+// Track in-flight refresh requests and timing outside of zustand state
+// (to avoid persistence issues)
+let refreshPromise: Promise<void> | null = null;
+let lastRefreshAttempt: number = 0;
+const MIN_REFRESH_INTERVAL = 5000; // 5 seconds minimum between refresh attempts
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -86,10 +93,31 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
         
-        try {
-          const response = await authService.getProfile();
-          
-                      if (response.user) {
+        // Check if refresh is already in progress - return existing promise
+        if (refreshPromise) {
+          return refreshPromise;
+        }
+        
+        // Debounce: prevent rapid successive calls
+        const now = Date.now();
+        const timeSinceLastAttempt = now - lastRefreshAttempt;
+        if (timeSinceLastAttempt < MIN_REFRESH_INTERVAL && lastRefreshAttempt > 0) {
+          // Too soon since last attempt, wait and return existing promise if available
+          if (refreshPromise) {
+            return refreshPromise;
+          }
+          // Otherwise, wait for the minimum interval
+          await new Promise(resolve => setTimeout(resolve, MIN_REFRESH_INTERVAL - timeSinceLastAttempt));
+        }
+        
+        lastRefreshAttempt = Date.now();
+        
+        // Create new refresh promise
+        refreshPromise = (async () => {
+          try {
+            const response = await authService.getProfile();
+            
+            if (response.user) {
               // Merge with existing user data to preserve assigned processes
               set((state) => {
                 const updatedUser = state.user ? {
@@ -102,10 +130,45 @@ export const useAuthStore = create<AuthState>()(
                 return { user: updatedUser as User };
               });
             }
-        } catch (error) {
-          console.error('Failed to refresh user:', error);
-          // Don't clear user on refresh failure, just log the error
-        }
+          } catch (error) {
+            // Handle authentication errors (404, 401) - clear auth state
+            const isAuthError = error instanceof ApiError && 
+              (error.status === 404 || error.status === 401);
+            
+            if (isAuthError) {
+              console.error('❌ Auth error during refresh - clearing auth state:', error);
+              // Clear auth state on authentication failure
+              set({ 
+                user: null, 
+                accessToken: null, 
+                isAuthenticated: false,
+                deviceId: null,
+                isInitialized: true
+              });
+              // Re-throw to prevent retries
+              throw error;
+            }
+            
+            // For network errors (5xx, timeout), log but don't clear auth
+            const isNetworkError = error instanceof ApiError && 
+              (error.status === undefined || error.status >= 500);
+            
+            if (isNetworkError) {
+              console.error('⚠️ Network error during refresh (will retry):', error);
+              // Don't clear auth on network errors - allow retry
+            } else {
+              console.error('Failed to refresh user:', error);
+            }
+            
+            // Re-throw to allow caller to handle
+            throw error;
+          } finally {
+            // Clear the promise cache after completion
+            refreshPromise = null;
+          }
+        })();
+        
+        return refreshPromise;
       },
       
       setDeviceId: (deviceId) => {
@@ -136,8 +199,10 @@ export const useAuthStore = create<AuthState>()(
               isInitialized: true
             });
             
-            // Try to fetch user data
-            await get().refreshUser();
+            // Try to fetch user data only if we don't have it
+            if (!state.user) {
+              await get().refreshUser();
+            }
           } catch (error) {
             console.error('❌ AuthStore - Token refresh failed:', error);
             // Clear invalid tokens
@@ -150,6 +215,7 @@ export const useAuthStore = create<AuthState>()(
             });
           }
         } else if (state.accessToken && !state.user) {
+          // Have token but no user - fetch user data
           set({ isAuthenticated: true });
           
           try {
@@ -157,32 +223,26 @@ export const useAuthStore = create<AuthState>()(
           } catch (error) {
             console.error('❌ AuthStore - Failed to fetch user data:', error);
             // If we can't fetch user data, clear the tokens
-            set({ 
-              user: null, 
-              accessToken: null, 
-              isAuthenticated: false,
-              deviceId: null,
-              isInitialized: true
-            });
+            const isAuthError = error instanceof ApiError && 
+              (error.status === 404 || error.status === 401);
+            if (isAuthError) {
+              set({ 
+                user: null, 
+                accessToken: null, 
+                isAuthenticated: false,
+                deviceId: null,
+                isInitialized: true
+              });
+            }
           }
         } else if (state.accessToken && state.user && !state.isAuthenticated) {
+          // Have token and user but not marked as authenticated - just set flag
           set({ isAuthenticated: true });
-          
-          // Try to refresh user data
-          try {
-            await get().refreshUser();
-          } catch (error) {
-            console.error('❌ AuthStore - Failed to refresh user on init:', error);
-            // Don't logout, just keep the stored user data
-          }
+          // Don't refresh - user already exists
         } else if (state.accessToken && state.user && state.isAuthenticated) {
-          // User is already authenticated, just refresh data
-          try {
-            await get().refreshUser();
-          } catch (error) {
-            console.error('❌ AuthStore - Failed to refresh user data:', error);
-            // Don't logout on refresh failure
-          }
+          // User is already authenticated with valid data - don't refresh unnecessarily
+          // Only refresh if it's been a while since last refresh (handled by debouncing)
+          // Skip refresh on initialization to prevent unnecessary calls
         }
         
         // Mark as initialized

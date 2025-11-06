@@ -128,10 +128,6 @@ export default function Settings() {
       if (response.user) {
         updateUser(response.user);
       }
-      
-      // Refresh user data from server to ensure we have the latest and all fields are synced
-      const { refreshUser } = useAuthStore.getState();
-      await refreshUser();
 
       setSuccess('Account settings updated successfully');
       toast.success('Account settings saved');

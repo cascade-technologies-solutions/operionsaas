@@ -549,6 +549,20 @@ class ApiClient {
             throw apiError;
           }
           
+          // Special handling for auth endpoints - don't retry 404 errors
+          // 404 on auth endpoints means user not found (auth failure), not retryable
+          const isAuthEndpoint = endpoint.includes('/auth/profile') || endpoint.includes('/auth/validate');
+          if (isAuthEndpoint && response.status === 404) {
+            // Convert 404 to 401 for auth endpoints to indicate authentication failure
+            const authError = new ApiError(
+              'User not found - authentication failed',
+              401, // Treat as 401 for consistency
+              errorData,
+              response
+            );
+            throw authError;
+          }
+          
           // Don't retry on authentication errors (401) or other 403 errors
           if (response.status === 401 || (response.status === 403 && !errorData.error?.includes('CSRF'))) {
             throw apiError;
