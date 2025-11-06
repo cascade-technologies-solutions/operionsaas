@@ -615,19 +615,40 @@ export default function EmployeeAttendance() {
                             const checkOutTime = attendance.checkOut?.time ? new Date(attendance.checkOut.time) : null;
                             const status = attendance.status || 'present';
                             
-                            // Use workHours from API response if available, otherwise calculate
+                            // Extract workHours from API (handle both string and number)
                             let workHours: number | null = null;
-                            if ((attendance as any).workHours !== undefined && (attendance as any).workHours !== null) {
-                              workHours = Number((attendance as any).workHours);
-                            } else if (checkInTime && checkOutTime) {
-                              workHours = calculateHours(checkInTime, checkOutTime);
+                            const apiWorkHours = (attendance as any).workHours;
+
+                            // Parse workHours - handle both string and number
+                            if (apiWorkHours !== undefined && apiWorkHours !== null && apiWorkHours !== '') {
+                              const parsed = typeof apiWorkHours === 'string' ? parseFloat(apiWorkHours) : Number(apiWorkHours);
+                              if (!isNaN(parsed) && isFinite(parsed)) {
+                                workHours = parsed;
+                              }
+                            }
+
+                            // Always calculate if we have check-in and check-out times (even if API workHours exists)
+                            // This ensures we show the correct value even if API workHours is 0 or incorrect
+                            if (checkInTime && checkOutTime) {
+                              const calculated = calculateHours(checkInTime, checkOutTime);
+                              // Prefer calculated value when we have both times (more accurate than API value)
+                              // Only use API workHours if calculated is invalid/zero and API has a valid value
+                              if (calculated > 0) {
+                                workHours = calculated;
+                              } else if (workHours === null || workHours === 0) {
+                                workHours = calculated; // Even if 0, use calculated for consistency
+                              }
                             } else if (checkInTime && !checkOutTime) {
                               // If no checkout time but it's today, calculate from checkin to now
                               const today = new Date();
                               const checkInDate = new Date(checkInTime);
                               const isToday = checkInDate.toDateString() === today.toDateString();
                               if (isToday) {
-                                workHours = calculateHours(checkInTime, today);
+                                const calculated = calculateHours(checkInTime, today);
+                                // Use calculated value if API workHours is missing/invalid/zero
+                                if (workHours === null || workHours === 0) {
+                                  workHours = calculated;
+                                }
                               }
                             }
                             
