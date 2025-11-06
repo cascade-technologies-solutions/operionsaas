@@ -16,11 +16,13 @@ import {
   Edit,
   Trash2,
   Save,
-  X
+  X,
+  MapPin
 } from 'lucide-react';
 import { factoryService } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from 'sonner';
+import { Factory } from '@/types';
 
 // Utility function to convert 24-hour format to 12-hour format
 const formatTimeTo12Hour = (time24: string): string => {
@@ -51,6 +53,8 @@ export default function FactorySettings() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [factory, setFactory] = useState<Factory | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
   
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -65,9 +69,42 @@ export default function FactorySettings() {
     isActive: true
   });
 
+  // Geofence form state
+  const [geofenceForm, setGeofenceForm] = useState({
+    latitude: '',
+    longitude: '',
+    radius: ''
+  });
+
   useEffect(() => {
+    loadFactory();
     loadShifts();
   }, []);
+
+  const loadFactory = async () => {
+    if (!user?.factoryId) {
+      setError('Factory ID not found');
+      return;
+    }
+
+    try {
+      const response = await factoryService.getFactory(user.factoryId);
+      const factoryData = response.data;
+      setFactory(factoryData);
+      
+      // Initialize geofence form with current values
+      if (factoryData?.geofence) {
+        setGeofenceForm({
+          latitude: factoryData.geofence.latitude?.toString() || '',
+          longitude: factoryData.geofence.longitude?.toString() || '',
+          radius: factoryData.geofence.radius?.toString() || '100'
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to load factory:', error);
+      toast.error('Failed to load factory data');
+    }
+  };
 
   const loadShifts = async () => {
     setLoading(true);
@@ -177,6 +214,88 @@ export default function FactorySettings() {
     setEditDialogOpen(false);
     setEditingShift(null);
     setShiftForm({ name: '', startTime: '', endTime: '', isActive: true });
+  };
+
+  const getCurrentLocation = async () => {
+    setLocationLoading(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+      const accuracy = position.coords.accuracy || 0;
+
+      setGeofenceForm(prev => ({
+        ...prev,
+        latitude: latitude.toFixed(6),
+        longitude: longitude.toFixed(6)
+      }));
+
+      const accuracyLevel = accuracy <= 10 ? 'Excellent' : 
+                           accuracy <= 20 ? 'Good' : 
+                           accuracy <= 50 ? 'Fair' : 'Poor';
+      
+      toast.success(`📍 Location detected! Accuracy: ${accuracy.toFixed(1)}m (${accuracyLevel})`);
+    } catch (error: any) {
+      console.error('Location error:', error);
+      toast.error('Failed to get current location. Please enable location services.');
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleUpdateGeofence = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user?.factoryId) {
+      toast.error('Factory ID not found');
+      return;
+    }
+
+    // Validation
+    const latitude = parseFloat(geofenceForm.latitude);
+    const longitude = parseFloat(geofenceForm.longitude);
+    const radius = parseInt(geofenceForm.radius);
+
+    if (isNaN(latitude) || latitude < -90 || latitude > 90) {
+      toast.error('Latitude must be between -90 and 90');
+      return;
+    }
+
+    if (isNaN(longitude) || longitude < -180 || longitude > 180) {
+      toast.error('Longitude must be between -180 and 180');
+      return;
+    }
+
+    if (isNaN(radius) || radius < 50 || radius > 1000) {
+      toast.error('Radius must be between 50 and 1000 meters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await factoryService.updateFactory(user.factoryId, {
+        geofence: {
+          latitude,
+          longitude,
+          radius
+        }
+      });
+      toast.success('Geofence settings updated successfully');
+      loadFactory(); // Reload factory data
+    } catch (error: any) {
+      console.error('Failed to update geofence:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to update geofence settings';
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -358,6 +477,124 @@ export default function FactorySettings() {
                 </Table>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Geofence Settings */}
+        <Card className="p-3 sm:p-4 md:p-6">
+          <CardHeader className="pb-3 sm:pb-4">
+            <div className="flex-1">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
+                Geofence Settings
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Configure the factory location and geofence radius for attendance check-in validation
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdateGeofence} className="space-y-4">
+              {/* Current Location Display */}
+              {factory?.geofence && (
+                <div className="bg-muted p-3 sm:p-4 rounded-lg mb-4">
+                  <p className="text-sm font-medium mb-2">Current Geofence Settings</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs sm:text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Latitude:</span>
+                      <span className="ml-2 font-mono">{factory.geofence.latitude?.toFixed(6)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Longitude:</span>
+                      <span className="ml-2 font-mono">{factory.geofence.longitude?.toFixed(6)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Radius:</span>
+                      <span className="ml-2 font-mono">{factory.geofence.radius}m</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <Label htmlFor="latitude" className="text-sm sm:text-base">
+                    Latitude
+                  </Label>
+                  <Input
+                    id="latitude"
+                    type="number"
+                    step="0.000001"
+                    min="-90"
+                    max="90"
+                    value={geofenceForm.latitude}
+                    onChange={(e) => setGeofenceForm(prev => ({ ...prev, latitude: e.target.value }))}
+                    placeholder="12.874547"
+                    required
+                    className="text-sm sm:text-base mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Range: -90 to 90</p>
+                </div>
+                <div>
+                  <Label htmlFor="longitude" className="text-sm sm:text-base">
+                    Longitude
+                  </Label>
+                  <Input
+                    id="longitude"
+                    type="number"
+                    step="0.000001"
+                    min="-180"
+                    max="180"
+                    value={geofenceForm.longitude}
+                    onChange={(e) => setGeofenceForm(prev => ({ ...prev, longitude: e.target.value }))}
+                    placeholder="74.825728"
+                    required
+                    className="text-sm sm:text-base mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Range: -180 to 180</p>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="radius" className="text-sm sm:text-base">
+                  Radius (meters)
+                </Label>
+                <Input
+                  id="radius"
+                  type="number"
+                  step="10"
+                  min="50"
+                  max="1000"
+                  value={geofenceForm.radius}
+                  onChange={(e) => setGeofenceForm(prev => ({ ...prev, radius: e.target.value }))}
+                  placeholder="100"
+                  required
+                  className="text-sm sm:text-base mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Range: 50 to 1000 meters</p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={getCurrentLocation}
+                  disabled={locationLoading || loading}
+                  className="w-full sm:w-auto min-h-[44px]"
+                >
+                  <MapPin className="h-4 w-4 mr-2" />
+                  {locationLoading ? 'Getting Location...' : 'Get Current Location'}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading || locationLoading}
+                  className="flex-1 sm:flex-initial min-h-[44px]"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {loading ? 'Saving...' : 'Save Geofence Settings'}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
 
