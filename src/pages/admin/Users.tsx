@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { sanitizeText } from '@/utils/sanitize';
 import { Layout } from '@/components/Layout';
 import { UsersManager } from '@/components/crud/UsersManager';
 import { Card } from '@/components/ui/card';
@@ -594,7 +594,7 @@ const UserManagement = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
-                  <p className="text-sm">{viewingUser.profile.firstName} {viewingUser.profile.lastName}</p>
+                  <p className="text-sm">{sanitizeText(viewingUser.profile.firstName)} {sanitizeText(viewingUser.profile.lastName)}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Role</Label>
@@ -764,7 +764,7 @@ const UserManagement = () => {
                           <TableRow key={user.id || user._id || user.username}>
                             <TableCell className="font-medium">
                               <div className="flex flex-col">
-                                <span>{user.profile.firstName} {user.profile.lastName}</span>
+                                <span>{sanitizeText(user.profile.firstName)} {sanitizeText(user.profile.lastName)}</span>
                                 <span className="text-xs text-muted-foreground md:hidden mt-1">{user.email}</span>
                               </div>
                             </TableCell>
@@ -845,7 +845,7 @@ const UserManagement = () => {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-base sm:text-lg truncate">
-                          {supervisor.profile.firstName} {supervisor.profile.lastName}
+                          {sanitizeText(supervisor.profile.firstName)} {sanitizeText(supervisor.profile.lastName)}
                         </h4>
                         <p className="text-xs sm:text-sm text-muted-foreground truncate">{supervisor.email}</p>
                         <p className="text-xs sm:text-sm text-muted-foreground">
@@ -909,7 +909,7 @@ const UserManagement = () => {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-base sm:text-lg truncate">
-                            {employee.profile.firstName} {employee.profile.lastName}
+                            {sanitizeText(employee.profile.firstName)} {sanitizeText(employee.profile.lastName)}
                           </h4>
                           <p className="text-xs sm:text-sm text-muted-foreground truncate">{employee.email}</p>
                           {supervisor && (

@@ -222,7 +222,29 @@ class ApiClient {
       }
     }
 
+    // Add CSRF token for state-changing requests
+    if (config?.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(config.method)) {
+      const csrfToken = this.getCsrfToken();
+      if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+      }
+    }
+
     return headers;
+  }
+
+  private getCsrfToken(): string | null {
+    // Read CSRF token from cookie
+    if (typeof document === 'undefined') return null;
+    
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'XSRF-TOKEN') {
+        return decodeURIComponent(value);
+      }
+    }
+    return null;
   }
 
   private async delay(ms: number): Promise<void> {
@@ -626,6 +648,12 @@ class ApiClient {
       if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
+    }
+
+    // Add CSRF token for file uploads
+    const csrfToken = this.getCsrfToken();
+    if (csrfToken) {
+      headers['X-XSRF-TOKEN'] = csrfToken;
     }
 
     const response = await fetch(this.buildURL(endpoint, config?.params), {

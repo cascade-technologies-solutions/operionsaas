@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { sanitizeText } from '@/utils/sanitize';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -349,7 +349,7 @@ export default function WorkValidation() {
                         <div className="text-xs sm:text-sm md:text-base">
                           <span className="text-muted-foreground block mb-1">Reason for less production:</span>
                           <p className="text-amber-700 bg-amber-50 p-2 rounded break-words leading-relaxed">
-                            {entry.reasonForLessProduction}
+                            {sanitizeText(entry.reasonForLessProduction)}
                           </p>
                         </div>
                       )}
@@ -453,7 +453,7 @@ export default function WorkValidation() {
                           <p className="break-words min-w-0">Validated by: {entry.validatedBy?.profile?.firstName} {entry.validatedBy?.profile?.lastName}</p>
                           <p className="break-words min-w-0">Date: {entry.validatedAt ? format(new Date(entry.validatedAt), 'MMM dd, yyyy HH:mm') : 'Unknown'}</p>
                           {entry.validationNotes && (
-                            <p className="mt-2 break-words min-w-0">Notes: {entry.validationNotes}</p>
+                            <p className="mt-2 break-words min-w-0">Notes: {sanitizeText(entry.validationNotes)}</p>
                           )}
                         </div>
                       )}
