@@ -48,16 +48,16 @@ export const authService = {
   async getProfile(): Promise<{ user: User }> {
     const response = await apiClient.get('/auth/profile');
     // Backend returns { success: true, data: user, status: 200 }
-    // We need to extract the user from response.data
-    const userData = response.data || response;
+    // Extract the user from response.data
+    const userData = response?.data || response;
     return { user: userData };
   },
 
   async updateProfile(profile: Partial<User['profile']>): Promise<{ user: User }> {
     const response = await apiClient.put('/auth/profile', { profile });
     // Backend returns { success: true, data: user, status: 200 }
-    // Profile.tsx expects { user: User }
-    const userData = response.data || response;
+    // Extract the user from response.data
+    const userData = response?.data || response;
     return { user: userData };
   },
 

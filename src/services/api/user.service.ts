@@ -19,19 +19,23 @@ export const userService = {
 
   async getUser(id: string): Promise<{ data: User }> {
     const response = await apiClient.get(`/users/${id}`);
-    return response.data || response;
+    // Backend returns { success: true, data: user, status: 200 }
+    const userData = response?.data || response;
+    return { data: userData };
   },
 
   async createUser(data: Partial<User>): Promise<{ data: User }> {
     const response = await apiClient.post('/users', data);
-    return response.data || response;
+    // Backend returns { success: true, data: user, status: 200 }
+    const userData = response?.data || response;
+    return { data: userData };
   },
 
   async updateUser(id: string, data: Partial<User>): Promise<{ data: User }> {
     const response = await apiClient.put(`/users/${id}`, data);
     // Backend returns { success: true, data: updatedUser, status: 200 }
-    // Users.tsx expects { data: User }
-    const userData = response.data || response;
+    // Extract the user from response.data
+    const userData = response?.data || response;
     return { data: userData };
   },
 
