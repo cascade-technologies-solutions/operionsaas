@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { attendanceService, workEntryService, processService, machineService, factoryService, productService } from '@/services/api';
+import { apiClient } from '@/services/api/client';
 
 import { Attendance, Process, Machine, WorkEntry, Product } from '@/types';
 
@@ -253,7 +254,7 @@ export default function EmployeeDashboard() {
   }, [isAuthenticated]);
 
   // Define loadDashboardData function first
-  const loadDashboardData = useCallback(async () => {
+  const loadDashboardData = useCallback(async (skipCache: boolean = false) => {
     if (!user) {
       return;
     }
@@ -384,7 +385,8 @@ export default function EmployeeDashboard() {
           } else {
             // Use _id (ObjectId) consistently for API calls
             const userIdForWorkEntries = user._id || user.id;
-            const workResponse = await workEntryService.getWorkEntriesByEmployee(userIdForWorkEntries?.toString() || userId, { today: 'true' });
+            // Use skipCache parameter to bypass frontend cache when refreshing after work entry creation
+            const workResponse = await workEntryService.getWorkEntriesByEmployee(userIdForWorkEntries?.toString() || userId, { today: 'true', skipCache });
             console.debug('Work entries response:', workResponse);
             
             // Handle different response structures
@@ -461,7 +463,8 @@ export default function EmployeeDashboard() {
 
     // Handler that refreshes both dashboard data and quantity status
     const handleProductionUpdate = async () => {
-      await loadDashboardData();
+      // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
+      await loadDashboardData(true);
       // Refresh quantity status if process and product are selected
       if (selectedProcess && selectedProduct) {
         // Add small delay to ensure backend has processed the update
@@ -583,7 +586,7 @@ export default function EmployeeDashboard() {
   };
 
   // Load all work entries for today
-  const loadAllWorkEntries = async () => {
+  const loadAllWorkEntries = async (skipCache: boolean = false) => {
     try {
       const userId = user?.id || user?._id;
       if (!userId) {
@@ -592,7 +595,8 @@ export default function EmployeeDashboard() {
       }
 
       console.log('📥 Loading work entries for employee:', userId);
-      const response = await workEntryService.getWorkEntriesByEmployee(userId, { today: 'true' });
+      // Use skipCache parameter to bypass frontend cache when refreshing after work entry creation
+      const response = await workEntryService.getWorkEntriesByEmployee(userId, { today: 'true', skipCache });
       
       console.log('📥 Work entries API response:', {
         response,
@@ -1179,6 +1183,9 @@ export default function EmployeeDashboard() {
           
           console.log('📥 Direct work entry response:', response);
           
+          // Clear frontend cache for work entries to ensure fresh data is fetched
+          apiClient.clearCache('/work-entries/employee/');
+          
           // The service now returns { data: WorkEntry } and validates the response
           // Extract work entry from response
           const newWorkEntry = response.data;
@@ -1434,6 +1441,9 @@ export default function EmployeeDashboard() {
       
       const response = await workEntryService.completeWork(workEntryId, completeWorkData);
       
+      // Clear frontend cache for work entries to ensure fresh data is fetched
+      apiClient.clearCache('/work-entries/employee/');
+      
       // Debug logging to see actual response structure
       console.log('📥 Complete work response structure:', {
         response,
@@ -1612,7 +1622,8 @@ export default function EmployeeDashboard() {
       // This doesn't set loading state, so UI won't be disrupted
       try {
         console.log('🔄 Reloading work entries immediately after submission...');
-        await loadAllWorkEntries();
+        // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
+        await loadAllWorkEntries(true);
         console.log('✅ Work entries reloaded immediately');
       } catch (reloadError) {
         console.error('❌ Failed to reload work entries immediately:', reloadError);
@@ -1624,7 +1635,8 @@ export default function EmployeeDashboard() {
       // Increased timeout to ensure backend has processed quantity deduction
       setTimeout(async () => {
         try {
-          await loadDashboardData();
+          // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
+          await loadDashboardData(true);
           console.log('✅ Dashboard data reloaded after work entry submission');
           
           // Refresh process quantity status to update Process Status card

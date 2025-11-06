@@ -331,6 +331,29 @@ class ApiClient {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
+  /**
+   * Clear cache entries matching a pattern
+   * @param pattern - Pattern to match against cache keys (e.g., '/work-entries/employee/')
+   * If not provided, clears all cache
+   */
+  clearCache(pattern?: string): void {
+    if (!pattern) {
+      // Clear all cache
+      this.cache.clear();
+      return;
+    }
+    
+    // Clear cache entries matching the pattern
+    const keysToDelete: string[] = [];
+    for (const key of this.cache.keys()) {
+      if (key.includes(pattern)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => this.cache.delete(key));
+  }
+
   async request<T = unknown>(
     endpoint: string,
     config?: RequestConfig

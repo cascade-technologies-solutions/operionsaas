@@ -91,7 +91,7 @@ export const workEntryService = {
     return response.data || response;
   },
 
-  async getWorkEntriesByEmployee(employeeId: string, params?: { today?: string; startDate?: string; endDate?: string; status?: string; page?: number; limit?: number }): Promise<{ data: WorkEntry[] }> {
+  async getWorkEntriesByEmployee(employeeId: string, params?: { today?: string; startDate?: string; endDate?: string; status?: string; page?: number; limit?: number; skipCache?: boolean }): Promise<{ data: WorkEntry[] }> {
     const queryParams = new URLSearchParams();
     if (params?.today) queryParams.append('today', params.today);
     if (params?.startDate) queryParams.append('startDate', params.startDate);
@@ -99,6 +99,10 @@ export const workEntryService = {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
+    // Add timestamp query parameter to bypass frontend cache when skipCache is true
+    if (params?.skipCache) {
+      queryParams.append('_t', Date.now().toString());
+    }
     
     const url = `/work-entries/employee/${employeeId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     const response = await apiClient.get(url);
