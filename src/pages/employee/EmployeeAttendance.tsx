@@ -489,8 +489,8 @@ export default function EmployeeAttendance() {
                     <div className="space-y-3">
                       {todayWorkEntries.map((entry, index) => {
                         const duration = entry.endTime && entry.startTime 
-                          ? formatHours(calculateHours(entry.startTime, entry.endTime))
-                          : '0.00h';
+                          ? formatWorkHours(calculateHours(entry.startTime, entry.endTime))
+                          : '-';
                         
                         return (
                           <div key={entry._id || index} className="p-3 sm:p-4 border rounded-lg bg-gradient-to-r from-gray-50 to-white hover:shadow-md transition-shadow">
@@ -616,9 +616,9 @@ export default function EmployeeAttendance() {
                             const status = attendance.status || 'present';
                             
                             // Use workHours from API response if available, otherwise calculate
-                            let workHours = 0;
-                            if ((attendance as any).workHours !== undefined) {
-                              workHours = (attendance as any).workHours;
+                            let workHours: number | null = null;
+                            if ((attendance as any).workHours !== undefined && (attendance as any).workHours !== null) {
+                              workHours = Number((attendance as any).workHours);
                             } else if (checkInTime && checkOutTime) {
                               workHours = calculateHours(checkInTime, checkOutTime);
                             } else if (checkInTime && !checkOutTime) {
@@ -646,7 +646,7 @@ export default function EmployeeAttendance() {
                                   {checkOutTime ? formatTime(checkOutTime) : 'On duty'}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-medium">
-                                  {workHours > 0 ? formatWorkHours(workHours) : '-'}
+                                  {workHours !== null && workHours !== undefined && !isNaN(workHours) ? formatWorkHours(workHours) : '-'}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   <Badge 

@@ -51,9 +51,18 @@ export const formatDateWithDay = (dateString: string | Date): string => {
 export const calculateHours = (startTime: string | Date, endTime: string | Date): number => {
   const start = new Date(startTime);
   const end = new Date(endTime);
+  
+  // Validate dates
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return 0;
+  }
+  
   const diffMs = end.getTime() - start.getTime();
   const diffHours = diffMs / (1000 * 60 * 60);
-  return Math.round(diffHours * 100) / 100; // Round to 2 decimal places
+  
+  // Ensure non-negative result (in case endTime is before startTime)
+  const result = Math.max(0, diffHours);
+  return Math.round(result * 100) / 100; // Round to 2 decimal places
 };
 
 /**
