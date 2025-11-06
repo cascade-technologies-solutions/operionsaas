@@ -935,7 +935,14 @@ export default function EmployeeDashboard() {
       if (error?.status === 500) {
         toast.error(`Server error: ${errorMessage}. Please check backend logs or contact support.`);
       } else if (error?.status === 400) {
-        toast.error(`Validation error: ${errorMessage}`);
+        // Check if it's a geofence validation error
+        if (errorMessage.includes('factory premises') || errorMessage.includes('geofence')) {
+          toast.error(errorMessage, {
+            duration: 5000, // Show longer for important message
+          });
+        } else {
+          toast.error(`Validation error: ${errorMessage}`);
+        }
       } else {
         toast.error(errorMessage);
       }
