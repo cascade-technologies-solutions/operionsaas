@@ -141,7 +141,30 @@ export const workEntryService = {
 
   async createDirectWorkEntry(data: Partial<WorkEntry>): Promise<{ data: WorkEntry }> {
     const response = await apiClient.post('/work-entries/direct', data);
-    return response.data || response;
+    
+    // Validate response structure
+    const responseData = response.data || response;
+    
+    // Check if response indicates failure
+    if (responseData && typeof responseData === 'object' && 'success' in responseData && responseData.success === false) {
+      const errorMessage = responseData.error || 'Failed to create work entry';
+      throw new Error(errorMessage);
+    }
+    
+    // Extract work entry data from response
+    const workEntryData = responseData?.data || responseData;
+    
+    // Validate work entry data exists
+    if (!workEntryData || typeof workEntryData !== 'object') {
+      throw new Error('Invalid response: work entry data not found');
+    }
+    
+    // Validate work entry has ID
+    if (!('_id' in workEntryData) && !('id' in workEntryData)) {
+      throw new Error('Invalid response: work entry ID not found');
+    }
+    
+    return { data: workEntryData as WorkEntry };
   },
 
   async getEmployeeDailySummary(employeeId: string, date?: string): Promise<{ data: any }> {

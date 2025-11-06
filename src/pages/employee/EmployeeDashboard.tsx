@@ -1072,11 +1072,19 @@ export default function EmployeeDashboard() {
           
           const response = await workEntryService.createDirectWorkEntry(directWorkEntryData);
           
-          // Optimistically update state with returned work entry
-          const newWorkEntry = (response as any).data?.data || (response as any).data || response;
-          if (newWorkEntry && typeof newWorkEntry === 'object' && ('_id' in newWorkEntry || 'id' in newWorkEntry)) {
-            setAllWorkEntries(prev => [newWorkEntry, ...prev]);
+          // The service now returns { data: WorkEntry } and validates the response
+          // Extract work entry from response
+          const newWorkEntry = response.data;
+          
+          // Validate work entry has required fields (service already validated, but double-check)
+          if (!newWorkEntry || typeof newWorkEntry !== 'object' || (!('_id' in newWorkEntry) && !('id' in newWorkEntry))) {
+            console.error('Invalid work entry response:', { response, newWorkEntry });
+            toast.error('Failed to submit production: Invalid response from server');
+            return;
           }
+          
+          // Update state with returned work entry
+          setAllWorkEntries(prev => [newWorkEntry, ...prev]);
           
           // Get attendance for check-out - use existing or fetch today's attendance
           let attendanceForCheckout = attendance;
