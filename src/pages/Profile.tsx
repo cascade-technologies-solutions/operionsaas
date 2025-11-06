@@ -77,7 +77,15 @@ export default function Profile() {
         phone: formData.phone,
       });
 
-      updateUser(response.user);
+      // Update the user in the store with the response
+      if (response.user) {
+        updateUser(response.user);
+      }
+      
+      // Refresh user data from server to ensure we have the latest and all fields are synced
+      const { refreshUser } = useAuthStore.getState();
+      await refreshUser();
+      
       setIsEditing(false);
       toast.success('Profile updated successfully');
     } catch (err: any) {
