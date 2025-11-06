@@ -214,13 +214,38 @@ class ApiClient {
     if (!this.getCsrfToken()) {
       try {
         const baseUrl = getBaseUrl() || (typeof window !== 'undefined' ? window.location.origin : '');
-        await fetch(`${baseUrl}/api/csrf-token`, {
+        const csrfUrl = `${baseUrl}/api/csrf-token`;
+        
+        const response = await fetch(csrfUrl, {
           method: 'GET',
-          credentials: 'include',
+          credentials: 'include', // Include cookies
         });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Store token in sessionStorage as fallback if cookie isn't accessible
+          if (data?.data?.csrfToken && typeof window !== 'undefined' && window.sessionStorage) {
+            sessionStorage.setItem('csrf-token', data.data.csrfToken);
+            console.debug('CSRF token stored in sessionStorage');
+          }
+        } else {
+          console.warn('CSRF token endpoint returned error:', response.status, response.statusText);
+        }
+        
+        // Small delay to ensure cookie is set (if accessible)
+        await this.delay(100);
+        
+        // Verify token is now available
+        const token = this.getCsrfToken();
+        if (token) {
+          console.debug('CSRF token successfully fetched and available');
+        } else {
+          console.warn('CSRF token fetched but not found in cookies or sessionStorage');
+        }
       } catch (error) {
-        // Silently fail - will be handled by CSRF error retry logic
-        console.debug('Failed to fetch CSRF token:', error);
+        // Log error for debugging
+        console.warn('Failed to fetch CSRF token:', error);
+        // Will be handled by CSRF error retry logic
       }
     }
   }
@@ -243,9 +268,12 @@ class ApiClient {
       const csrfToken = this.getCsrfToken();
       if (csrfToken) {
         headers['X-XSRF-TOKEN'] = csrfToken;
-        console.debug('CSRF token added to request headers');
+        console.debug('CSRF token added to request headers:', csrfToken.substring(0, 10) + '...');
       } else {
         console.warn('CSRF token missing for state-changing request:', config.method);
+        console.warn('Available cookies:', document.cookie);
+        // Try to fetch token synchronously (this won't work but helps with debugging)
+        console.warn('Attempting to fetch CSRF token...');
       }
     }
 
@@ -253,19 +281,29 @@ class ApiClient {
   }
 
   private getCsrfToken(): string | null {
-    // Read CSRF token from cookie
-    if (typeof document === 'undefined') return null;
+    // Try to read CSRF token from cookie first
+    if (typeof document !== 'undefined') {
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'XSRF-TOKEN') {
+          const token = decodeURIComponent(value);
+          console.debug('CSRF token found in cookie');
+          return token;
+        }
+      }
+    }
     
-    const cookies = document.cookie.split(';');
-    for (const cookie of cookies) {
-      const [name, value] = cookie.trim().split('=');
-      if (name === 'XSRF-TOKEN') {
-        const token = decodeURIComponent(value);
-        console.debug('CSRF token found in cookie');
+    // Fallback: try to read from sessionStorage (for cross-origin scenarios)
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const token = sessionStorage.getItem('csrf-token');
+      if (token) {
+        console.debug('CSRF token found in sessionStorage (fallback)');
         return token;
       }
     }
-    console.debug('CSRF token not found in cookies');
+    
+    console.debug('CSRF token not found in cookies or sessionStorage');
     return null;
   }
 

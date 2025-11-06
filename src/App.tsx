@@ -175,11 +175,20 @@ const App = () => {
         const baseUrl = apiUrl.startsWith('/') ? '' : apiUrl.replace(/\/api\/?$/, '');
         const csrfUrl = `${baseUrl}/api/csrf-token`;
         
-        await fetch(csrfUrl, {
+        const response = await fetch(csrfUrl, {
           method: 'GET',
           credentials: 'include', // Include cookies
         });
-        // CSRF token is set in cookie by backend, no need to handle response
+        
+        if (response.ok) {
+          const data = await response.json();
+          // CSRF token is set in cookie by backend, but also returned in response
+          // Store it in sessionStorage as fallback if cookie isn't accessible
+          if (data?.data?.csrfToken) {
+            sessionStorage.setItem('csrf-token', data.data.csrfToken);
+            console.debug('CSRF token stored in sessionStorage as fallback');
+          }
+        }
       } catch (error) {
         // Silently fail - CSRF token will be fetched on first API call
         console.debug('CSRF token fetch failed (will retry on first API call):', error);
