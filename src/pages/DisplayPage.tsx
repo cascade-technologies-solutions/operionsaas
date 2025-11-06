@@ -283,7 +283,7 @@ export default function DisplayPage() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl lg:text-4xl font-bold mb-2">IFB PRODUCTION STATUS - FRONT LOADER</h1>
+            <h1 className="text-2xl lg:text-4xl font-bold mb-2"> PRODUCTION STATUS </h1>
             <p className="text-lg lg:text-xl text-gray-300">
               Last updated: {lastUpdated.toLocaleTimeString()}
             </p>

@@ -11,17 +11,43 @@ import {
   Smartphone, 
   CheckCircle, 
   XCircle, 
-  Clock
+  Clock,
+  Edit,
+  Trash2,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 
 interface UserDetailsProps {
   user: User | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onResetDevice?: (userId: string, userName: string) => void;
+  actionLoading?: boolean;
+  resetLoadingId?: string | null;
+  deleteLoading?: boolean;
 }
 
-export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChange }) => {
+export const UserDetails: React.FC<UserDetailsProps> = ({ 
+  user, 
+  open, 
+  onOpenChange,
+  onEdit,
+  onDelete,
+  onResetDevice,
+  actionLoading = false,
+  resetLoadingId = null,
+  deleteLoading = false
+}) => {
   if (!user) return null;
+
+  const handleResetDevice = () => {
+    if (onResetDevice && (user._id || user.id)) {
+      onResetDevice(user._id || user.id || '', `${user.profile.firstName} ${user.profile.lastName}`);
+    }
+  };
 
   const formatDate = (dateString: string | Date) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -56,16 +82,16 @@ export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChan
           </p>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Basic Information */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <UserIcon className="h-4 w-4" />
                 Basic Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Full Name</label>
@@ -113,13 +139,13 @@ export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChan
 
           {/* Device Information */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Smartphone className="h-4 w-4" />
                 Device Information
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <div className="space-y-3">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Device ID</label>
@@ -142,13 +168,13 @@ export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChan
 
           {/* Timestamps */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Clock className="h-4 w-4" />
                 Account Information
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Created</label>
@@ -180,8 +206,73 @@ export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChan
 
         </div>
 
-        <div className="flex justify-end pt-4">
-          <Button onClick={() => onOpenChange(false)}>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:justify-end pt-4 border-t">
+          {onEdit && (
+            <Button
+              variant="outline"
+              onClick={onEdit}
+              disabled={actionLoading || deleteLoading}
+              className="w-full sm:w-auto"
+            >
+              {actionLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </>
+              )}
+            </Button>
+          )}
+          {onResetDevice && (user._id || user.id) && (
+            <Button
+              variant="outline"
+              onClick={handleResetDevice}
+              disabled={actionLoading || resetLoadingId === (user._id || user.id) || deleteLoading}
+              className="w-full sm:w-auto"
+            >
+              {actionLoading || resetLoadingId === (user._id || user.id) ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Resetting...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Reset Device
+                </>
+              )}
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="destructive"
+              onClick={onDelete}
+              disabled={actionLoading || deleteLoading}
+              className="w-full sm:w-auto"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto"
+          >
             Close
           </Button>
         </div>

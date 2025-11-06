@@ -259,17 +259,17 @@ export default function EmployeeManagement() {
           ) : (
             filteredEmployees.map((employee) => (
               <Card key={employee._id || employee.id || employee.email} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3 sm:p-4 md:p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                         <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm sm:text-base truncate">
+                        <h3 className="font-semibold text-base sm:text-lg mb-2">
                           {employee.profile.firstName} {employee.profile.lastName}
                         </h3>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {getStatusBadge(employee.isActive)}
                           {employee.deviceId && (
                             <Badge variant="outline" className="text-xs">
@@ -281,66 +281,18 @@ export default function EmployeeManagement() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap sm:flex-nowrap">
+                    <div className="flex justify-end">
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         onClick={() => {
                           setSelectedUser(employee);
                           setIsDetailsDialogOpen(true);
                         }}
-                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                        title="View Details"
+                        className="w-full sm:w-auto min-w-[120px]"
                       >
-                        <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleResetDevice(employee._id || employee.id || '', `${employee.profile.firstName} ${employee.profile.lastName}`)}
-                        disabled={actionLoading || resetLoadingId === (employee._id || employee.id) || (!employee._id && !employee.id)}
-                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                        title="Reset Device"
-                      >
-                        {actionLoading || resetLoadingId === (employee._id || employee.id) ? (
-                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                        ) : (
-                          <Smartphone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(employee);
-                          setIsEditDialogOpen(true);
-                        }}
-                        disabled={actionLoading || deleteUser.isPending}
-                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                        title="Edit Employee"
-                      >
-                        {actionLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                        ) : (
-                          <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(employee);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                        disabled={deleteUser.isPending || actionLoading}
-                        className="h-8 w-8 sm:h-9 sm:w-9 p-0 text-red-600 hover:text-red-700"
-                        title="Delete Employee"
-                      >
-                        {deleteUser.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                        )}
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
                       </Button>
                     </div>
                   </div>
@@ -412,6 +364,18 @@ export default function EmployeeManagement() {
               setSelectedUser(null);
             }
           }}
+          onEdit={() => {
+            setIsDetailsDialogOpen(false);
+            setIsEditDialogOpen(true);
+          }}
+          onDelete={() => {
+            setIsDetailsDialogOpen(false);
+            setIsDeleteDialogOpen(true);
+          }}
+          onResetDevice={handleResetDevice}
+          actionLoading={actionLoading}
+          resetLoadingId={resetLoadingId}
+          deleteLoading={deleteUser.isPending}
         />
 
       </div>
