@@ -10,6 +10,7 @@ export { attendanceService } from './attendance.service';
 export { workEntryService } from './workEntry.service';
 export { dashboardService } from './dashboard.service';
 export { reportsService } from './reports.service';
+export { productionService } from './production.service';
 
 // Re-export types for convenience
 export type { ApiResponse, RequestConfig } from './client';
