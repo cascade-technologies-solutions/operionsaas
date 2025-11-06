@@ -46,10 +46,7 @@ export function sanitizeText(text: string): string {
 
 /**
  * React component wrapper to safely render user-generated content
- * @param content - Content to render safely
- * @returns Sanitized content
+ * Note: This is a utility function, not a React component.
+ * Use it directly: {sanitizeText(content)}
  */
-export function SafeContent({ content }: { content: string }): string {
-  return sanitizeText(content);
-}
 

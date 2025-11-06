@@ -1,4 +1,5 @@
 // Production-ready WebSocket Service
+import { useEffect, useCallback, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from './api/client';
 
@@ -255,8 +256,6 @@ class WebSocketService {
 export const wsService = new WebSocketService();
 
 // React Hook for WebSocket
-import { useEffect, useCallback, useState } from 'react';
-
 export function useWebSocket(event: WSEvent, handler: (data: any) => void) {
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
