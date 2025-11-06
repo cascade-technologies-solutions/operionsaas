@@ -36,6 +36,7 @@ import { Process, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { useDeleteProcess } from '@/hooks/useApi';
+import { wsService } from '@/services/websocket.service';
 
 const Processes = () => {
   const { user } = useAuthStore();
@@ -57,6 +58,22 @@ const Processes = () => {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    const unsubs = [
+      wsService.subscribe('process_created', () => loadData()),
+      wsService.subscribe('process_updated', () => loadData()),
+      wsService.subscribe('process_deleted', () => loadData()),
+      wsService.subscribe('product_created', () => loadData()),
+      wsService.subscribe('product_updated', () => loadData()),
+      wsService.subscribe('product_deleted', () => loadData())
+    ];
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
   }, []);
 
   const loadData = async () => {

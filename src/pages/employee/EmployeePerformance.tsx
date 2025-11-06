@@ -21,6 +21,7 @@ import { format, subDays } from 'date-fns';
 import { reportsService, ReportFilters } from '@/services/api/reports.service';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from 'sonner';
+import { wsService } from '@/services/websocket.service';
 
 // Real data will be loaded from API
 
@@ -172,6 +173,19 @@ export default function EmployeePerformance() {
     }
   }, [user?.id, user?._id, selectedPeriod, loadPerformanceData]);
 
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    const unsubscribeWork = wsService.subscribe('work_entry_submitted', loadPerformanceData);
+    const unsubscribeProduction = wsService.subscribe('production_data_updated', loadPerformanceData);
+    const unsubscribeValidated = wsService.subscribe('work_entry_validated', loadPerformanceData);
+
+    return () => {
+      unsubscribeWork();
+      unsubscribeProduction();
+      unsubscribeValidated();
+    };
+  }, [loadPerformanceData]);
+
   const getEfficiencyColor = (efficiency: number) => {
     if (efficiency >= 110) return 'text-success';
     if (efficiency >= 90) return 'text-primary';
@@ -262,27 +276,6 @@ export default function EmployeePerformance() {
                 ⚠️ {error}
               </p>
             )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={loadPerformanceData}
-              variant="outline"
-              size="sm"
-              disabled={loading}
-              className="w-full sm:w-auto"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Refresh
-                </>
-              )}
-            </Button>
           </div>
         </div>
 

@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { workEntryService } from '@/services/api/workEntry.service';
 import { WorkEntry } from '@/types';
 import { format } from 'date-fns';
+import { wsService } from '@/services/websocket.service';
 
 /**
  * Safely extracts a string value from a potentially nested object structure.
@@ -92,6 +93,19 @@ export default function WorkValidation() {
 
   useEffect(() => {
     loadWorkEntries();
+  }, []);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    const unsubscribeSubmitted = wsService.subscribe('work_entry_submitted', loadWorkEntries);
+    const unsubscribeValidated = wsService.subscribe('work_entry_validated', loadWorkEntries);
+    const unsubscribeProduction = wsService.subscribe('production_data_updated', loadWorkEntries);
+
+    return () => {
+      unsubscribeSubmitted();
+      unsubscribeValidated();
+      unsubscribeProduction();
+    };
   }, []);
 
   const loadWorkEntries = async () => {
@@ -211,10 +225,6 @@ export default function WorkValidation() {
               Review and validate employee work entries
             </p>
           </div>
-          <Button onClick={loadWorkEntries} variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm h-11 sm:h-9">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
         </div>
 
         {/* Filters */}

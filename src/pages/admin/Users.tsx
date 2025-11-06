@@ -42,6 +42,7 @@ import { userService } from '@/services/api';
 import { User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/authStore';
+import { wsService } from '@/services/websocket.service';
 
 const UserManagement = () => {
   const { user } = useAuthStore();
@@ -71,6 +72,19 @@ const UserManagement = () => {
       loadData();
     }
   }, [user]);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    const unsubs = [
+      wsService.subscribe('user_created', () => loadData()),
+      wsService.subscribe('user_updated', () => loadData()),
+      wsService.subscribe('user_deleted', () => loadData())
+    ];
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
+  }, []);
 
   const loadData = async () => {
     if (!user) {
@@ -405,14 +419,6 @@ const UserManagement = () => {
           <p className="text-muted-foreground text-sm sm:text-base">Manage supervisors and employees</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button 
-            variant="outline" 
-            onClick={loadData}
-            disabled={loading}
-            className="w-full sm:w-auto"
-          >
-            {loading ? 'Loading...' : 'Refresh'}
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleCloseDialog()} className="w-full sm:w-auto">

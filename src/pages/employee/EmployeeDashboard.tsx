@@ -37,6 +37,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDate, formatTime, formatHours, formatWorkHours, calculateHours } from '@/utils/dateUtils';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { CameraCapture } from '@/components/CameraCapture';
+import { wsService } from '@/services/websocket.service';
 
 export default function EmployeeDashboard() {
   const { user, updateUser, refreshUser, isAuthenticated } = useAuthStore();
@@ -452,6 +453,27 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     if (!user) return;
     loadDashboardData();
+  }, [user, loadDashboardData]);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubs = [
+      wsService.subscribe('product_created', loadDashboardData),
+      wsService.subscribe('product_updated', loadDashboardData),
+      wsService.subscribe('product_deleted', loadDashboardData),
+      wsService.subscribe('process_created', loadDashboardData),
+      wsService.subscribe('process_updated', loadDashboardData),
+      wsService.subscribe('process_deleted', loadDashboardData),
+      wsService.subscribe('production_data_updated', loadDashboardData),
+      wsService.subscribe('work_entry_submitted', loadDashboardData),
+      wsService.subscribe('work_entry_validated', loadDashboardData)
+    ];
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
   }, [user, loadDashboardData]);
 
   // Load quantity status when process is selected

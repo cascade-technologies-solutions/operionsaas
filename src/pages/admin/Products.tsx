@@ -28,6 +28,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { SortableProcessList } from '@/components/SortableProcessList';
 import { DeleteConfirmDialog } from '@/components/crud/DeleteConfirmDialog';
 import { useDeleteProduct, useDeleteProcess, useCreateProduct, useCreateProcess } from '@/hooks/useApi';
+import { wsService } from '@/services/websocket.service';
 
 interface Machine {
   _id: string;
@@ -107,6 +108,22 @@ const Products = () => {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    const unsubs = [
+      wsService.subscribe('product_created', () => loadData(true)),
+      wsService.subscribe('product_updated', () => loadData(true)),
+      wsService.subscribe('product_deleted', () => loadData(true)),
+      wsService.subscribe('process_created', () => loadData(true)),
+      wsService.subscribe('process_updated', () => loadData(true)),
+      wsService.subscribe('process_deleted', () => loadData(true))
+    ];
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
   }, []);
 
   const loadData = async (forceRefresh = false) => {

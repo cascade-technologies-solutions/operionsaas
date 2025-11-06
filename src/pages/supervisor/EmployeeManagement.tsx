@@ -12,6 +12,7 @@ import { UserDetails } from '@/components/crud/UserDetails';
 import { userService } from '@/services/api/user.service';
 import { useDeleteUser } from '@/hooks/useApi';
 import { User } from '@/types';
+import { wsService } from '@/services/websocket.service';
 import { 
   Users, 
   Search, 
@@ -45,6 +46,19 @@ export default function EmployeeManagement() {
 
   useEffect(() => {
     loadEmployees();
+  }, []);
+
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    const unsubs = [
+      wsService.subscribe('user_created', () => loadEmployees()),
+      wsService.subscribe('user_updated', () => loadEmployees()),
+      wsService.subscribe('user_deleted', () => loadEmployees())
+    ];
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
   }, []);
 
   const loadEmployees = async () => {
@@ -203,10 +217,6 @@ export default function EmployeeManagement() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={loadEmployees} variant="outline" size="sm" className="w-full sm:w-auto">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
             <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Employee
