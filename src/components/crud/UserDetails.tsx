@@ -1,11 +1,8 @@
-import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { User, Process } from '@/types';
-import { processService, userService } from '@/services/api';
+import { User } from '@/types';
 import { 
   User as UserIcon, 
   Mail, 
@@ -14,10 +11,7 @@ import {
   Smartphone, 
   CheckCircle, 
   XCircle, 
-  Clock,
-  Building,
-  Settings,
-  Loader2
+  Clock
 } from 'lucide-react';
 
 interface UserDetailsProps {
@@ -27,142 +21,6 @@ interface UserDetailsProps {
 }
 
 export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChange }) => {
-  const [assignedProcessDetails, setAssignedProcessDetails] = useState<Process[]>([]);
-  const [loadingProcesses, setLoadingProcesses] = useState(false);
-  const [cleaningUp, setCleaningUp] = useState(false);
-
-  useEffect(() => {
-    const fetchAssignedProcessDetails = async () => {
-      if (user?.assignedProcesses && user.assignedProcesses.length > 0) {
-        setLoadingProcesses(true);
-        try {
-          // Check if assignedProcesses are already populated objects or just IDs
-          const firstProcess = user.assignedProcesses[0];
-          if (typeof firstProcess === 'object' && firstProcess.name) {
-            // Processes are already populated, use them directly
-            setAssignedProcessDetails(user.assignedProcesses as Process[]);
-            setLoadingProcesses(false);
-            return;
-          }
-
-          // Processes are just IDs, fetch them
-          const processDetails = await Promise.all(
-            user.assignedProcesses.map(async (processId) => {
-              try {
-                // Extract the actual ID if it's an object
-                const id = typeof processId === 'object' ? processId._id || processId.id : processId;
-                // Ensure id is a string, not an object
-                const processIdString = typeof id === 'string' ? id : String(id);
-                const response = await processService.getProcess(processIdString);
-                return response.data || response;
-              } catch (error: any) {
-                // Handle different error types gracefully
-                const id = typeof processId === 'object' ? processId._id || processId.id : processId;
-                const processIdString = typeof id === 'string' ? id : String(id);
-                if (error.message === 'Access denied' || error.status === 403) {
-                  // Access denied for process
-                  return { _id: processIdString, name: 'Access Restricted', stage: 'N/A' };
-                } else if (error.status === 404) {
-                  // Process not found - likely deleted or invalid ID
-                  return { _id: processIdString, name: 'Process Not Found', stage: 'N/A' };
-                }
-                return { _id: processIdString, name: 'Unknown Process', stage: 'N/A' };
-              }
-            })
-          );
-          
-          const validProcesses = processDetails.filter(process => process !== null);
-          setAssignedProcessDetails(validProcesses);
-          
-          // Check if there are any "Process Not Found" entries and log them for cleanup
-          const notFoundProcesses = processDetails.filter(process => 
-            process && process.name === 'Process Not Found'
-          );
-          if (notFoundProcesses.length > 0) {
-            console.warn('Found invalid process references:', notFoundProcesses.map(p => p._id));
-          }
-        } catch (error) {
-          setAssignedProcessDetails([]);
-        } finally {
-          setLoadingProcesses(false);
-        }
-      } else {
-        setAssignedProcessDetails([]);
-        setLoadingProcesses(false);
-      }
-    };
-
-    if (open && user) {
-      fetchAssignedProcessDetails();
-    }
-  }, [user, open]);
-
-  const cleanupInvalidProcesses = async () => {
-    if (!user || !user.assignedProcesses) return;
-    
-    setCleaningUp(true);
-    try {
-      // Filter out invalid process IDs by checking which ones exist
-      const validProcessIds = await Promise.all(
-        user.assignedProcesses.map(async (processId) => {
-          try {
-            // Extract the actual ID if it's an object
-            const id = typeof processId === 'object' ? processId._id || processId.id : processId;
-            const processIdString = typeof id === 'string' ? id : String(id);
-            await processService.getProcess(processIdString);
-            return processIdString; // Process exists
-          } catch (error: any) {
-            if (error.status === 404) {
-              return null; // Process doesn't exist
-            }
-            // Extract the actual ID if it's an object
-            const id = typeof processId === 'object' ? processId._id || processId.id : processId;
-            const processIdString = typeof id === 'string' ? id : String(id);
-            return processIdString; // Other errors, keep the process
-          }
-        })
-      );
-      
-      const cleanedProcessIds = validProcessIds.filter(id => id !== null) as string[];
-      
-      if (cleanedProcessIds.length !== user.assignedProcesses.length) {
-        // Update user with cleaned process list
-        await userService.updateUserProcesses(user._id || user.id, cleanedProcessIds);
-        // Refresh the process details
-        if (user.assignedProcesses && user.assignedProcesses.length > 0) {
-          const fetchAssignedProcessDetails = async () => {
-            setLoadingProcesses(true);
-            try {
-              const processDetails = await Promise.all(
-                cleanedProcessIds.map(async (processId) => {
-                  try {
-                    const response = await processService.getProcess(processId);
-                    return response.data || response;
-                  } catch (error: any) {
-                    if (error.status === 404) {
-                      return { _id: processId, name: 'Process Not Found', stage: 'N/A' };
-                    }
-                    return { _id: processId, name: 'Unknown Process', stage: 'N/A' };
-                  }
-                })
-              );
-              setAssignedProcessDetails(processDetails.filter(process => process !== null));
-            } catch (error) {
-              setAssignedProcessDetails([]);
-            } finally {
-              setLoadingProcesses(false);
-            }
-          };
-          fetchAssignedProcessDetails();
-        }
-      }
-    } catch (error) {
-      console.error('Error cleaning up invalid processes:', error);
-    } finally {
-      setCleaningUp(false);
-    }
-  };
-
   if (!user) return null;
 
   const formatDate = (dateString: string | Date) => {
@@ -187,14 +45,14 @@ export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="user-details-description">
+      <DialogContent className="w-[95vw] sm:w-full max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="user-details-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
             Employee Details
           </DialogTitle>
           <p id="user-details-description" className="sr-only">
-            View detailed information about the selected employee including their profile, assigned processes, and account details.
+            View detailed information about the selected employee including their profile and account details.
           </p>
         </DialogHeader>
 
@@ -279,62 +137,6 @@ export const UserDetails: React.FC<UserDetailsProps> = ({ user, open, onOpenChan
                   </Badge>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Assigned Processes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Assigned Processes
-                </div>
-                {assignedProcessDetails.some(p => p.name === 'Process Not Found') && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={cleanupInvalidProcesses}
-                    disabled={cleaningUp}
-                  >
-                    {cleaningUp ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Cleaning...
-                      </>
-                    ) : (
-                      'Clean Up'
-                    )}
-                  </Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingProcesses ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Loading processes...</span>
-                </div>
-              ) : assignedProcessDetails.length > 0 ? (
-                <div className="space-y-3">
-                  {assignedProcessDetails.map((process) => (
-                    <div key={process._id || process.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
-                          {typeof process.name === 'string' 
-                            ? process.name 
-                            : process.name?.name || process.name?._id || 'Unknown Process'
-                          }
-                        </p>
-                        <p className="text-sm text-muted-foreground">Stage {process.stage}</p>
-                      </div>
-                      <Badge variant="outline">Assigned</Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No processes assigned</p>
-              )}
             </CardContent>
           </Card>
 

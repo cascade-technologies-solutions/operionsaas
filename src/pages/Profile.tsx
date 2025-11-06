@@ -308,14 +308,6 @@ export default function Profile() {
                         <span className="break-words">{user.factory?.name || 'Factory Name'}</span>
                       </p>
                     </div>
-                    <div>
-                      <Label className="text-sm sm:text-base">Factory Status</Label>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        <Badge variant={user.factory?.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
-                          {user.factory?.status?.toUpperCase() || 'UNKNOWN'}
-                        </Badge>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </>

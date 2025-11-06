@@ -259,14 +259,14 @@ export default function EmployeeManagement() {
           ) : (
             filteredEmployees.map((employee) => (
               <Card key={employee._id || employee.id || employee.email} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Users className="h-6 w-6 text-primary" />
+                <CardContent className="p-3 sm:p-4 md:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">
+                        <h3 className="font-semibold text-sm sm:text-base truncate">
                           {employee.profile.firstName} {employee.profile.lastName}
                         </h3>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -274,13 +274,14 @@ export default function EmployeeManagement() {
                           {employee.deviceId && (
                             <Badge variant="outline" className="text-xs">
                               <Smartphone className="h-3 w-3 mr-1" />
-                              Device Bound
+                              <span className="hidden sm:inline">Device Bound</span>
+                              <span className="sm:hidden">Device</span>
                             </Badge>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap sm:flex-nowrap">
                       <Button
                         variant="outline"
                         size="sm"
@@ -288,23 +289,23 @@ export default function EmployeeManagement() {
                           setSelectedUser(employee);
                           setIsDetailsDialogOpen(true);
                         }}
-                        className="h-9 w-9 p-0"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         title="View Details"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleResetDevice(employee._id || employee.id || '', `${employee.profile.firstName} ${employee.profile.lastName}`)}
                         disabled={actionLoading || resetLoadingId === (employee._id || employee.id) || (!employee._id && !employee.id)}
-                        className="h-9 w-9 p-0"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         title="Reset Device"
                       >
                         {actionLoading || resetLoadingId === (employee._id || employee.id) ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                         ) : (
-                          <Smartphone className="h-4 w-4" />
+                          <Smartphone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         )}
                       </Button>
                       <Button
@@ -315,13 +316,13 @@ export default function EmployeeManagement() {
                           setIsEditDialogOpen(true);
                         }}
                         disabled={actionLoading || deleteUser.isPending}
-                        className="h-9 w-9 p-0"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                         title="Edit Employee"
                       >
                         {actionLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                         ) : (
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         )}
                       </Button>
                       <Button
@@ -332,13 +333,13 @@ export default function EmployeeManagement() {
                           setIsDeleteDialogOpen(true);
                         }}
                         disabled={deleteUser.isPending || actionLoading}
-                        className="h-9 w-9 p-0 text-red-600 hover:text-red-700"
+                        className="h-8 w-8 sm:h-9 sm:w-9 p-0 text-red-600 hover:text-red-700"
                         title="Delete Employee"
                       >
                         {deleteUser.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                         ) : (
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         )}
                       </Button>
                     </div>
@@ -351,7 +352,7 @@ export default function EmployeeManagement() {
 
         {/* Create Employee Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-2xl" aria-describedby="create-employee-description">
+          <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="create-employee-description">
             <DialogHeader>
               <DialogTitle>Add New Employee</DialogTitle>
               <DialogDescription id="create-employee-description">
@@ -370,7 +371,7 @@ export default function EmployeeManagement() {
 
         {/* Edit Employee Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl" aria-describedby="edit-employee-description">
+          <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby="edit-employee-description">
             <DialogHeader>
               <DialogTitle>Edit Employee</DialogTitle>
               <DialogDescription id="edit-employee-description">

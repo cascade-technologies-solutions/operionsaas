@@ -27,12 +27,7 @@ const baseUserSchema = z.object({
   }),
   isActive: z.boolean(),
   assignedProcesses: z.array(z.string()).optional(),
-  password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .optional(),
+  password: z.string().optional(),
 });
 
 // Extended schema for admin users (with email)
@@ -70,8 +65,27 @@ export const UserForm: React.FC<UserFormProps> = ({
   const isAdminRole = selectedRole === 'factory_admin' || selectedRole === 'super_admin';
   const userSchema = isAdminRole ? adminUserSchema : baseUserSchema;
 
+  // Create a refined schema based on whether supervisor is creating employee
+  // When supervisor creates employee (restrictRoleToEmployee && !initialData), password should be numbers only
+  const finalSchema = restrictRoleToEmployee && !initialData
+    ? userSchema.extend({
+        password: z.string()
+          .min(1, 'Password is required')
+          .regex(/^[0-9]+$/, 'Password must contain only numbers')
+          .min(4, 'Password must be at least 4 digits'),
+      })
+    : userSchema.extend({
+        password: z.string()
+          .min(8, 'Password must be at least 8 characters')
+          .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+          .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+          .regex(/[0-9]/, 'Password must contain at least one number')
+          .optional()
+          .or(z.literal('')),
+      });
+
   const form = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+    resolver: zodResolver(finalSchema),
     defaultValues: {
       profile: {
         firstName: initialData?.profile.firstName || '',
@@ -301,9 +315,19 @@ export const UserForm: React.FC<UserFormProps> = ({
                     <FormLabel>Password</FormLabel>
                     <FormControl>
                       <Input 
-                        type="password" 
-                        placeholder="Enter password (min 6 characters)" 
-                        {...field} 
+                        type="password"
+                        placeholder={restrictRoleToEmployee ? "Enter password (numbers only, min 4 digits)" : "Enter password (min 8 characters)"}
+                        {...field}
+                        inputMode={restrictRoleToEmployee ? "numeric" : "text"}
+                        onChange={(e) => {
+                          if (restrictRoleToEmployee) {
+                            // Only allow numbers
+                            const value = e.target.value.replace(/[^0-9]/g, '');
+                            field.onChange(value);
+                          } else {
+                            field.onChange(e.target.value);
+                          }
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
