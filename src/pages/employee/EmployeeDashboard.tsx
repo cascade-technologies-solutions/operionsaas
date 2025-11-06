@@ -469,37 +469,64 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     if (!user) return;
 
+    let debounceTimer: NodeJS.Timeout | null = null; // Debounce timer for production updates
+
     // Handler that refreshes both dashboard data and quantity status
+    // Use debouncing to prevent rapid-fire API calls when multiple updates arrive quickly
     const handleProductionUpdate = async () => {
-      console.log('📡 WebSocket: Production data updated, refreshing dashboard and process status...');
-      // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
-      await loadDashboardData(true);
-      // Refresh quantity status if process and product are selected
-      if (selectedProcess && selectedProduct) {
-        // Add small delay to ensure backend has processed the update
-        // Use skipCache=true to bypass API cache and get fresh data
-        setTimeout(() => {
-          loadProcessQuantityStatus(selectedProcess, true).catch(err => {
-            console.error('Failed to refresh quantity status after WebSocket update:', err);
-          });
-        }, 500);
-      } else if (selectedProcess) {
-        // Refresh process status even if product is not selected
-        setTimeout(() => {
-          loadProcessQuantityStatus(selectedProcess, true).catch(err => {
-            console.error('Failed to refresh quantity status after WebSocket update:', err);
-          });
-        }, 500);
+      console.log('📡 WebSocket: Production data updated, scheduling refresh...');
+      
+      // Clear existing debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
       }
+      
+      // Debounce: wait 500ms before refreshing
+      // This batches rapid updates together (e.g., multiple employees submitting at once)
+      debounceTimer = setTimeout(async () => {
+        console.log('📡 WebSocket: Refreshing dashboard and process status...');
+        // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
+        await loadDashboardData(true);
+        // Refresh quantity status if process and product are selected
+        if (selectedProcess && selectedProduct) {
+          // Add small delay to ensure backend has processed the update
+          // Use skipCache=true to bypass API cache and get fresh data
+          setTimeout(() => {
+            loadProcessQuantityStatus(selectedProcess, true).catch(err => {
+              console.error('Failed to refresh quantity status after WebSocket update:', err);
+            });
+          }, 500);
+        } else if (selectedProcess) {
+          // Refresh process status even if product is not selected
+          setTimeout(() => {
+            loadProcessQuantityStatus(selectedProcess, true).catch(err => {
+              console.error('Failed to refresh quantity status after WebSocket update:', err);
+            });
+          }, 500);
+        }
+        debounceTimer = null;
+      }, 500);
+    };
+
+    // Debounced handler for product/process updates (less critical, can batch)
+    let productProcessDebounceTimer: NodeJS.Timeout | null = null;
+    const handleProductProcessUpdate = () => {
+      if (productProcessDebounceTimer) {
+        clearTimeout(productProcessDebounceTimer);
+      }
+      productProcessDebounceTimer = setTimeout(() => {
+        loadDashboardData(true);
+        productProcessDebounceTimer = null;
+      }, 500);
     };
 
     const unsubs = [
-      wsService.subscribe('product_created', loadDashboardData),
-      wsService.subscribe('product_updated', loadDashboardData),
-      wsService.subscribe('product_deleted', loadDashboardData),
-      wsService.subscribe('process_created', loadDashboardData),
-      wsService.subscribe('process_updated', loadDashboardData),
-      wsService.subscribe('process_deleted', loadDashboardData),
+      wsService.subscribe('product_created', handleProductProcessUpdate),
+      wsService.subscribe('product_updated', handleProductProcessUpdate),
+      wsService.subscribe('product_deleted', handleProductProcessUpdate),
+      wsService.subscribe('process_created', handleProductProcessUpdate),
+      wsService.subscribe('process_updated', handleProductProcessUpdate),
+      wsService.subscribe('process_deleted', handleProductProcessUpdate),
       wsService.subscribe('production_data_updated', handleProductionUpdate),
       wsService.subscribe('work_entry_submitted', handleProductionUpdate),
       wsService.subscribe('work_entry_validated', handleProductionUpdate)
@@ -507,6 +534,13 @@ export default function EmployeeDashboard() {
 
     return () => {
       unsubs.forEach(u => u());
+      // Clean up debounce timers
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      if (productProcessDebounceTimer) {
+        clearTimeout(productProcessDebounceTimer);
+      }
     };
   }, [user, loadDashboardData, selectedProcess, selectedProduct]);
 

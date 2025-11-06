@@ -184,6 +184,7 @@ export default function DisplayPage() {
   useEffect(() => {
     let currentPollingInterval: NodeJS.Timeout | null = null;
     let wsConnectedRef = false; // Track if WebSocket connection has been initiated
+    let debounceTimer: NodeJS.Timeout | null = null; // Debounce timer for WebSocket events
 
     // Initial data load
     loadDataRef.current();
@@ -221,9 +222,22 @@ export default function DisplayPage() {
     };
 
     // Subscribe to production data updates - refresh data when event is received
+    // Use debouncing to prevent rapid-fire API calls when multiple updates arrive quickly
     const unsubscribe = wsService.subscribe('production_data_updated', () => {
-      console.log('📡 WebSocket: Production data updated, refreshing display...');
-      loadDataRef.current();
+      console.log('📡 WebSocket: Production data updated, scheduling refresh...');
+      
+      // Clear existing debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      
+      // Debounce: wait 500ms before refreshing
+      // This batches rapid updates together (e.g., multiple employees submitting at once)
+      debounceTimer = setTimeout(() => {
+        console.log('📡 WebSocket: Refreshing display data...');
+        loadDataRef.current();
+        debounceTimer = null;
+      }, 500);
     });
 
     // Connect WebSocket only once on mount
@@ -256,6 +270,10 @@ export default function DisplayPage() {
     return () => {
       unsubscribe();
       clearInterval(connectionCheckInterval);
+      // Clean up debounce timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       // Don't disconnect WebSocket here as it might be used by other components
       // wsService.disconnect();
       // Clean up polling interval
