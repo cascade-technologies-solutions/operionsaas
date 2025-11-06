@@ -528,9 +528,15 @@ export default function EmployeeDashboard() {
   // All products are shown - no filtering based on process
   // Products are filtered by factory at the backend level
 
-  // Connect to WebSocket for real-time updates
+  // Connect to WebSocket for real-time updates (only once)
   useEffect(() => {
     if (!user) return;
+
+    // Check if WebSocket is already connected or connecting
+    const connectionState = wsService.getConnectionState();
+    if (connectionState === 'connected' || connectionState === 'connecting') {
+      return; // Already connected or connecting, don't create another connection
+    }
 
     const connectWebSocket = async () => {
       try {
@@ -548,7 +554,7 @@ export default function EmployeeDashboard() {
     return () => {
       // wsService.disconnect(); // Don't disconnect - might be used by other components
     };
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id, not the entire user object
 
   // Refresh data when component comes into focus
   useEffect(() => {

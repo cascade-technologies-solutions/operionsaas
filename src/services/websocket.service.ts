@@ -60,13 +60,34 @@ class WebSocketService {
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // If already connected, resolve immediately
       if (this.ws?.readyState === WebSocket.OPEN) {
         resolve();
         return;
       }
 
+      // If already connecting, wait for that connection to complete
       if (this.isConnecting) {
-        resolve();
+        // Wait for connection to complete (max 5 seconds)
+        const checkInterval = setInterval(() => {
+          if (this.ws?.readyState === WebSocket.OPEN) {
+            clearInterval(checkInterval);
+            resolve();
+          } else if (!this.isConnecting && this.ws?.readyState !== WebSocket.CONNECTING) {
+            clearInterval(checkInterval);
+            // Connection failed, reject
+            reject(new Error('Previous connection attempt failed'));
+          }
+        }, 100);
+        
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          if (this.ws?.readyState === WebSocket.OPEN) {
+            resolve();
+          } else {
+            reject(new Error('Connection timeout'));
+          }
+        }, 5000);
         return;
       }
 
@@ -86,6 +107,11 @@ class WebSocketService {
       this.isConnecting = true;
 
       try {
+        // Close existing connection if it exists but is not open
+        if (this.ws && this.ws.readyState !== WebSocket.OPEN && this.ws.readyState !== WebSocket.CLOSED) {
+          this.ws.close();
+        }
+        
         this.ws = apiClient.createWebSocket(userId);
         
         this.ws.onopen = () => {

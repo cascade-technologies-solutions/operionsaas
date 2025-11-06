@@ -169,14 +169,33 @@ export default function DisplayPage() {
     }
   }, [isLoadingData]);
 
+  // Use ref to store latest loadData function to avoid dependency issues
+  const loadDataRef = useRef(loadData);
+  useEffect(() => {
+    loadDataRef.current = loadData;
+  }, [loadData]);
+
+  // Use ref to store latest pollIntervalMs to avoid dependency issues
+  const pollIntervalMsRef = useRef(pollIntervalMs);
+  useEffect(() => {
+    pollIntervalMsRef.current = pollIntervalMs;
+  }, [pollIntervalMs]);
+
   useEffect(() => {
     let currentPollingInterval: NodeJS.Timeout | null = null;
+    let wsConnectedRef = false; // Track if WebSocket connection has been initiated
 
     // Initial data load
-    loadData();
+    loadDataRef.current();
 
-    // Connect to WebSocket for real-time updates
+    // Connect to WebSocket for real-time updates (only once)
     const connectWebSocket = async () => {
+      // Prevent multiple connection attempts
+      if (wsConnectedRef || wsService.getConnectionState() === 'connected' || wsService.getConnectionState() === 'connecting') {
+        return;
+      }
+      
+      wsConnectedRef = true;
       try {
         await wsService.connect();
         setWsConnected(true);
@@ -190,11 +209,12 @@ export default function DisplayPage() {
       } catch (error) {
         console.error('❌ WebSocket connection failed:', error);
         setWsConnected(false);
+        wsConnectedRef = false; // Reset on failure to allow retry
         // Fallback to polling if WebSocket fails - use current interval (with exponential backoff)
         if (!currentPollingInterval) {
           currentPollingInterval = setInterval(() => {
-            loadData();
-          }, pollIntervalMs);
+            loadDataRef.current();
+          }, pollIntervalMsRef.current);
           setPollingInterval(currentPollingInterval);
         }
       }
@@ -203,17 +223,18 @@ export default function DisplayPage() {
     // Subscribe to production data updates - refresh data when event is received
     const unsubscribe = wsService.subscribe('production_data_updated', () => {
       console.log('📡 WebSocket: Production data updated, refreshing display...');
-      loadData();
+      loadDataRef.current();
     });
 
+    // Connect WebSocket only once on mount
     connectWebSocket();
 
     // Set up polling as fallback (only if WebSocket is not connected)
     const checkConnectionAndPoll = () => {
       if (wsService.getConnectionState() !== 'connected' && !currentPollingInterval) {
         currentPollingInterval = setInterval(() => {
-          loadData();
-        }, pollIntervalMs);
+          loadDataRef.current();
+        }, pollIntervalMsRef.current);
         setPollingInterval(currentPollingInterval);
       }
     };
@@ -226,7 +247,8 @@ export default function DisplayPage() {
         clearInterval(currentPollingInterval);
         currentPollingInterval = null;
         setPollingInterval(null);
-      } else if (connectionState !== 'connected') {
+      } else if (connectionState !== 'connected' && !wsConnectedRef) {
+        // Only try to reconnect if we haven't already initiated a connection
         checkConnectionAndPoll();
       }
     }, 5000); // Check every 5 seconds
@@ -247,7 +269,7 @@ export default function DisplayPage() {
         rateLimitResetTimeoutRef.current = null;
       }
     };
-  }, [loadData, pollIntervalMs]); // Include loadData and pollIntervalMs in dependencies
+  }, []); // Empty dependency array - only run once on mount
 
   const getEfficiencyColor = (efficiency: number) => {
     if (efficiency >= 90) return 'text-green-400';
