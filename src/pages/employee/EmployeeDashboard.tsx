@@ -1140,7 +1140,36 @@ export default function EmployeeDashboard() {
           }
           
           // Update state with returned work entry
-          setAllWorkEntries(prev => [newWorkEntry, ...prev]);
+          const workEntryId = newWorkEntry._id || newWorkEntry.id;
+          console.log('✅ Updating state with direct work entry:', workEntryId);
+          
+          setAllWorkEntries(prev => {
+            // Check if entry already exists (shouldn't happen for new entries, but be safe)
+            const existingIndex = prev.findIndex(
+              entry => {
+                const entryId = entry._id || entry.id;
+                return entryId === workEntryId || entryId?.toString() === workEntryId?.toString();
+              }
+            );
+            
+            if (existingIndex >= 0) {
+              console.log(`🔄 Updating existing work entry at index ${existingIndex}`);
+              const updated = prev.map((entry, idx) => {
+                const entryId = entry._id || entry.id;
+                if (entryId === workEntryId || entryId?.toString() === workEntryId?.toString()) {
+                  return newWorkEntry;
+                }
+                return entry;
+              });
+              console.log(`📊 State updated: ${updated.length} work entries`);
+              return updated;
+            } else {
+              console.log(`➕ Adding new direct work entry to state`);
+              const updated = [newWorkEntry, ...prev];
+              console.log(`📊 State updated: ${updated.length} work entries`);
+              return updated;
+            }
+          });
           
           // Get attendance for check-out - use existing or fetch today's attendance
           let attendanceForCheckout = attendance;
@@ -1250,12 +1279,23 @@ export default function EmployeeDashboard() {
             }
           }
           
-          // Reset form and reload data for full sync
-          await loadDashboardData();
+          // Reset form first (immediate UI feedback)
           setAchievedQuantity('');
           setRejectedQuantity('');
           setCapturedPhoto(null);
           // Keep Product, Process, Machine, and Shift selections
+          
+          // Then reload data from server to ensure consistency
+          // Use setTimeout to ensure state update completes first
+          setTimeout(async () => {
+            try {
+              await loadDashboardData();
+              console.log('✅ Dashboard data reloaded after direct work entry submission');
+            } catch (reloadError) {
+              console.error('❌ Failed to reload dashboard data:', reloadError);
+              // Don't show error to user - optimistic update already happened
+            }
+          }, 100);
           
           return;
         } catch (error: any) {
@@ -1296,8 +1336,33 @@ export default function EmployeeDashboard() {
       
       const startResponse = await workEntryService.startWork(startWorkData);
       
-      // Then complete the work with production data
-      const workEntryId = startResponse.data?._id || (startResponse as any)._id;
+      console.log('📥 Start work response structure:', {
+        startResponse,
+        startResponseType: typeof startResponse,
+        hasData: startResponse && typeof startResponse === 'object' && 'data' in startResponse
+      });
+      
+      // Extract work entry ID from start response
+      // startWork service returns { data: WorkEntry }
+      let workEntryId: string | null = null;
+      
+      if (startResponse && typeof startResponse === 'object' && 'data' in startResponse) {
+        const startData = startResponse.data;
+        if (startData && typeof startData === 'object') {
+          workEntryId = startData._id || startData.id || null;
+        }
+      } else if (startResponse && typeof startResponse === 'object' && '_id' in startResponse) {
+        workEntryId = (startResponse as any)._id;
+      }
+      
+      if (!workEntryId) {
+        console.error('❌ Failed to extract work entry ID from start response:', startResponse);
+        toast.error('Failed to start work entry. Please try again.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('✅ Extracted work entry ID:', workEntryId);
       
       const completeWorkData = {
         achieved: formData.achieved,
@@ -1307,26 +1372,81 @@ export default function EmployeeDashboard() {
       
       const response = await workEntryService.completeWork(workEntryId, completeWorkData);
       
-      // Optimistically update state with returned work entry
-      const updatedWorkEntry = (response as any).data?.data || (response as any).data || response;
+      // Debug logging to see actual response structure
+      console.log('📥 Complete work response structure:', {
+        response,
+        responseType: typeof response,
+        hasData: response && typeof response === 'object' && 'data' in response,
+        dataType: response?.data ? typeof response.data : 'undefined',
+        dataKeys: response?.data && typeof response.data === 'object' ? Object.keys(response.data) : []
+      });
+      
+      // Extract work entry from response
+      // completeWork service returns { data: WorkEntry } or { data: { success, data: WorkEntry } }
+      let updatedWorkEntry: any = null;
+      
+      if (response && typeof response === 'object') {
+        if ('data' in response) {
+          const responseData = response.data;
+          // Check if responseData has nested data (from API client wrapper)
+          if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+            updatedWorkEntry = responseData.data;
+          } else {
+            // Direct data property
+            updatedWorkEntry = responseData;
+          }
+        } else {
+          // Response itself might be the work entry
+          updatedWorkEntry = response;
+        }
+      }
+      
+      console.log('📦 Extracted work entry:', {
+        updatedWorkEntry,
+        hasId: updatedWorkEntry && ('_id' in updatedWorkEntry || 'id' in updatedWorkEntry),
+        workEntryId: updatedWorkEntry?._id || updatedWorkEntry?.id
+      });
+      
+      // Validate and update state with returned work entry
       if (updatedWorkEntry && typeof updatedWorkEntry === 'object' && ('_id' in updatedWorkEntry || 'id' in updatedWorkEntry)) {
+        const workEntryId = updatedWorkEntry._id || updatedWorkEntry.id;
+        console.log('✅ Updating state with work entry:', workEntryId);
+        
         setAllWorkEntries(prev => {
           const existingIndex = prev.findIndex(
-            entry => entry._id === updatedWorkEntry._id || entry.id === updatedWorkEntry._id
+            entry => {
+              const entryId = entry._id || entry.id;
+              return entryId === workEntryId || entryId?.toString() === workEntryId?.toString();
+            }
           );
           
           if (existingIndex >= 0) {
             // Update existing entry
-            return prev.map(entry => 
-              entry._id === updatedWorkEntry._id || entry.id === updatedWorkEntry._id 
-                ? updatedWorkEntry 
-                : entry
-            );
+            console.log(`🔄 Updating existing work entry at index ${existingIndex}`);
+            const updated = prev.map((entry, idx) => {
+              const entryId = entry._id || entry.id;
+              if (entryId === workEntryId || entryId?.toString() === workEntryId?.toString()) {
+                return updatedWorkEntry;
+              }
+              return entry;
+            });
+            console.log(`📊 State updated: ${updated.length} work entries`);
+            return updated;
           } else {
             // Add new entry if it doesn't exist yet
-            return [updatedWorkEntry, ...prev];
+            console.log(`➕ Adding new work entry to state`);
+            const updated = [updatedWorkEntry, ...prev];
+            console.log(`📊 State updated: ${updated.length} work entries`);
+            return updated;
           }
         });
+      } else {
+        console.error('❌ Invalid work entry response structure:', {
+          updatedWorkEntry,
+          response,
+          error: 'Work entry missing _id or id field'
+        });
+        toast.warning('Work entry submitted but UI update failed. Refreshing...');
       }
       
       // Get attendance for check-out - use existing or fetch today's attendance
@@ -1437,11 +1557,22 @@ export default function EmployeeDashboard() {
         }
       }
       
-      // Reset form and reload data
-      await loadDashboardData();
+      // Reset form first (immediate UI feedback)
       setAchievedQuantity('');
       setRejectedQuantity('');
       setCapturedPhoto(null);
+      
+      // Then reload data from server to ensure consistency
+      // Use setTimeout to ensure state update completes first
+      setTimeout(async () => {
+        try {
+          await loadDashboardData();
+          console.log('✅ Dashboard data reloaded after work entry submission');
+        } catch (reloadError) {
+          console.error('❌ Failed to reload dashboard data:', reloadError);
+          // Don't show error to user - optimistic update already happened
+        }
+      }, 100);
       
     } catch (error: any) {
       console.error('❌ Production submission error:', {
