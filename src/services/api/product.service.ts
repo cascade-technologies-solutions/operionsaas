@@ -4,7 +4,8 @@ import { apiClient } from './client';
 
 export const productService = {
   async getProducts(): Promise<{ data: Product[] }> {
-    const response = await apiClient.get('/products');
+    // Pass limit=100 to fetch all products (backend default is 10)
+    const response = await apiClient.get('/products', { limit: 100 });
     
     // Handle different response formats
     if (response.data?.data?.products) {
