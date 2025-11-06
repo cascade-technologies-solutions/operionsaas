@@ -263,7 +263,7 @@ export default function EmployeePerformance() {
 
   return (
     <Layout title="My Performance">
-      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+      <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-6 pb-20 sm:pb-24">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -281,7 +281,7 @@ export default function EmployeePerformance() {
 
         {/* Today's Performance */}
         <Card className="shadow-md border-l-4 border-l-primary">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <Target className="h-5 w-5" />
               Today's Performance
@@ -290,7 +290,7 @@ export default function EmployeePerformance() {
               {format(new Date(), 'EEEE, MMMM do, yyyy')}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-primary/5 rounded-lg">
                 <p className="text-xl sm:text-2xl font-bold text-primary">{currentStats.todayAchieved}</p>
@@ -364,7 +364,7 @@ export default function EmployeePerformance() {
         <div className="grid gap-6">
           {/* Daily Performance Trend */}
           <Card className="shadow-md">
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                   <BarChart3 className="h-5 w-5" />
@@ -375,7 +375,7 @@ export default function EmployeePerformance() {
                     variant={selectedPeriod === 'week' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedPeriod('week')}
-                    className="flex-1 sm:flex-none"
+                    className="flex-1 sm:flex-none min-w-[80px]"
                   >
                     Week
                   </Button>
@@ -383,45 +383,67 @@ export default function EmployeePerformance() {
                     variant={selectedPeriod === 'month' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedPeriod('month')}
-                    className="flex-1 sm:flex-none"
+                    className="flex-1 sm:flex-none min-w-[80px]"
                   >
                     Month
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               {loading ? (
                 <div className="flex items-center justify-center h-64">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
               ) : performanceData.length > 0 || weeklyStats.length > 0 ? (
-                <div className="h-[250px] sm:h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-[250px] sm:h-[300px] lg:h-[400px] w-full overflow-x-auto">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                     {selectedPeriod === 'week' ? (
-                      <LineChart data={performanceData}>
+                      <LineChart data={performanceData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
                           dataKey="date" 
                           tickFormatter={(value) => format(new Date(value), 'MMM dd')}
-                          fontSize={12}
-                          className="text-xs sm:text-sm"
+                          fontSize={10}
+                          className="text-xs"
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
                         />
-                        <YAxis fontSize={12} className="text-xs sm:text-sm" />
+                        <YAxis fontSize={10} className="text-xs" width={50} />
                         <Tooltip 
                           labelFormatter={(value) => format(new Date(value), 'MMM dd, yyyy')}
                           formatter={(value, name) => [value, name === 'efficiency' ? `${value}%` : value]}
+                          contentStyle={{
+                            fontSize: '12px',
+                            padding: '8px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid #ccc',
+                            borderRadius: '4px',
+                            maxWidth: '200px'
+                          }}
+                          wrapperStyle={{ zIndex: 1000 }}
                         />
-                        <Line type="monotone" dataKey="achieved" stroke="hsl(var(--primary))" strokeWidth={2} name="Achieved" />
-                        <Line type="monotone" dataKey="target" stroke="hsl(var(--muted-foreground))" strokeWidth={2} strokeDasharray="5 5" name="Target" />
-                        <Line type="monotone" dataKey="efficiency" stroke="hsl(var(--success))" strokeWidth={2} name="Efficiency" />
+                        <Line type="monotone" dataKey="achieved" stroke="hsl(var(--primary))" strokeWidth={2} name="Achieved" dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="target" stroke="hsl(var(--muted-foreground))" strokeWidth={2} strokeDasharray="5 5" name="Target" dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="efficiency" stroke="hsl(var(--success))" strokeWidth={2} name="Efficiency" dot={{ r: 3 }} />
                       </LineChart>
                     ) : (
-                      <BarChart data={weeklyStats}>
+                      <BarChart data={weeklyStats} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="week" fontSize={12} className="text-xs sm:text-sm" />
-                        <YAxis fontSize={12} className="text-xs sm:text-sm" />
-                        <Tooltip />
+                        <XAxis dataKey="week" fontSize={10} className="text-xs" angle={-45} textAnchor="end" height={60} />
+                        <YAxis fontSize={10} className="text-xs" width={50} />
+                        <Tooltip 
+                          contentStyle={{
+                            fontSize: '12px',
+                            padding: '8px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid #ccc',
+                            borderRadius: '4px',
+                            maxWidth: '200px'
+                          }}
+                          wrapperStyle={{ zIndex: 1000 }}
+                        />
                         <Bar dataKey="production" fill="hsl(var(--primary))" name="Production" />
                         <Bar dataKey="target" fill="hsl(var(--muted))" name="Target" />
                       </BarChart>
@@ -444,7 +466,7 @@ export default function EmployeePerformance() {
 
           {/* Achievements */}
           <Card className="shadow-md">
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-6">
               <CardTitle className="flex items-center gap-2">
                 <Award className="h-5 w-5" />
                 Achievements & Milestones
@@ -453,7 +475,7 @@ export default function EmployeePerformance() {
                 Your earned achievements and progress towards goals
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               {achievements.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {achievements.map((achievement) => (
@@ -496,13 +518,13 @@ export default function EmployeePerformance() {
 
           {/* Statistics Summary */}
           <Card className="shadow-md">
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-6">
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
                 Performance Summary
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div>
                   <p className="text-2xl font-bold text-primary">{currentStats.totalProduction}</p>
