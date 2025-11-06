@@ -261,6 +261,14 @@ export default function EmployeeDashboard() {
 
     setLoading(true);
     try {
+      // Clear cache if skipCache is true to ensure fresh data
+      if (skipCache) {
+        apiClient.clearCache('/processes');
+        apiClient.clearCache('/products');
+        apiClient.clearCache('/machines');
+        apiClient.clearCache('/work-entries');
+      }
+      
       // Load processes for the factory - employees can work on any process
       const processesResponse = await processService.getProcesses();
       const allProcesses = 'data' in processesResponse ? processesResponse.data : processesResponse;

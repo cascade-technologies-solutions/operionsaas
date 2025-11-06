@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { DisplayAnalyticsReport, HourlyProductionData, ProductPlanData } from '@/types';
 import { reportsService } from '@/services/api';
+import { apiClient } from '@/services/api/client';
 import { wsService } from '@/services/websocket.service';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -44,7 +45,11 @@ export default function DisplayPage() {
       setLoading(true);
       setError(null);
       
-      const response = await reportsService.getRealtimeDisplay({});
+      // Clear cache to ensure fresh data on WebSocket updates
+      apiClient.clearCache('/reports/realtime-display');
+      
+      // Add cache-busting timestamp parameter (using type assertion since _t is not in ReportFilters interface)
+      const response = await reportsService.getRealtimeDisplay({ _t: Date.now().toString() } as any);
       
       if (response) {
         setData(response);
