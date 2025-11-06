@@ -1,6 +1,6 @@
 // Blocking redirect component for iOS PWA
 // This component checks auth state SYNCHRONOUSLY before render to prevent landing page flash
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const ROLE_DASHBOARD_PATHS: Record<string, string> = {
   super_admin: '/super-admin',
