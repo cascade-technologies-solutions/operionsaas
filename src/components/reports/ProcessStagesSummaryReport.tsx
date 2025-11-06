@@ -22,6 +22,7 @@ import {
 import { reportsService, ReportFilters } from '@/services/api/reports.service';
 import { ProcessStagesSummaryReport, ProductSummary, ProcessSummary } from '@/types';
 import { toast } from 'sonner';
+import { wsService } from '@/services/websocket.service';
 
 interface ProcessStagesSummaryReportProps {
   className?: string;
@@ -80,6 +81,17 @@ export function ProcessStagesSummaryReport({
       return () => clearInterval(interval);
     }
   }, [autoRefresh, refreshInterval]);
+
+  // WebSocket listener for real-time production data updates
+  useEffect(() => {
+    const unsubscribe = wsService.subscribe('production_data_updated', () => {
+      loadReport(true);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [filters]);
 
   const handleExport = async (format: 'pdf' | 'excel') => {
     try {
@@ -171,20 +183,6 @@ export function ProcessStagesSummaryReport({
                     <SelectItem value="process">Process-centric</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="flex items-end">
-                <Button 
-                  onClick={() => loadReport(true)} 
-                  disabled={refreshing}
-                  className="w-full"
-                >
-                  {refreshing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Refresh
-                </Button>
               </div>
             </div>
           </CardContent>

@@ -15,6 +15,7 @@ import {
 import { ProductProcessStagesReport, ProductProcessStagesData, ProcessStageData } from '@/types';
 import { reportsService } from '@/services/api';
 import { toast } from 'sonner';
+import { wsService } from '@/services/websocket.service';
 
 interface ProductProcessStagesTableProps {
   filters: {
@@ -76,6 +77,17 @@ export default function ProductProcessStagesTable({
       return () => clearInterval(interval);
     }
   }, [autoRefresh, filters.realtime, refreshInterval]);
+
+  // WebSocket listener for real-time production data updates
+  useEffect(() => {
+    const unsubscribe = wsService.subscribe('production_data_updated', () => {
+      loadData();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [filters]);
 
   const handleExport = async (format: 'pdf' | 'excel') => {
     try {
@@ -178,12 +190,6 @@ export default function ProductProcessStagesTable({
                   <Clock className="h-3 w-3 mr-1" />
                   Live
                 </Badge>
-              )}
-              {showRefresh && (
-                <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
               )}
               {showExport && (
                 <>

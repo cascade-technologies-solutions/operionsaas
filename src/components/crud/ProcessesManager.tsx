@@ -1,25 +1,53 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useProcesses, useProducts, useCreateProcess, useUpdateProcess, useDeleteProcess } from '@/hooks/useApi';
+import { useProcesses, useProducts, useCreateProcess, useUpdateProcess, useDeleteProcess, QUERY_KEYS } from '@/hooks/useApi';
 import { ProcessForm } from './ProcessForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { Process } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTenant } from '@/contexts/TenantContext';
+import { wsService } from '@/services/websocket.service';
 
 export const ProcessesManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { factoryId } = useTenant();
 
   const { data: processes, isLoading } = useProcesses();
   const { data: products } = useProducts();
   const createProcess = useCreateProcess();
   const updateProcess = useUpdateProcess();
   const deleteProcess = useDeleteProcess();
+
+  // WebSocket listeners for real-time updates from other sessions
+  useEffect(() => {
+    if (!factoryId) return;
+
+    const unsubscribeCreated = wsService.subscribe('process_created', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId) });
+    });
+
+    const unsubscribeUpdated = wsService.subscribe('process_updated', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId) });
+    });
+
+    const unsubscribeDeleted = wsService.subscribe('process_deleted', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.processes(factoryId) });
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeUpdated();
+      unsubscribeDeleted();
+    };
+  }, [factoryId, queryClient]);
 
   const filteredProcesses = processes?.filter(process =>
     process.name.toLowerCase().includes(searchTerm.toLowerCase())

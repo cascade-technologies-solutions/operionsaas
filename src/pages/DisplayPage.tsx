@@ -277,14 +277,6 @@ export default function DisplayPage() {
               </Button>
               <span className="text-sm font-medium">Table</span>
             </div>
-            
-            <Button
-              onClick={loadData}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
           </div>
         </div>
 

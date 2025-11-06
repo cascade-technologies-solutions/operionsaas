@@ -28,6 +28,7 @@ import { attendanceService, workEntryService, machineService } from '@/services/
 import { Attendance, WorkEntry, Machine } from '@/types';
 import { formatDate, formatTime, formatHours, formatWorkHours, calculateHours } from '@/utils/dateUtils';
 import { toast } from 'sonner';
+import { wsService } from '@/services/websocket.service';
 
 /**
  * Safely extracts a string value from a potentially nested object structure.
@@ -212,6 +213,29 @@ export default function EmployeeAttendance() {
     }
   }, [user, loadTodayAttendance, loadAttendanceHistory, loadAllWorkEntries, loadMachines]);
 
+  // WebSocket listeners for real-time updates
+  useEffect(() => {
+    const unsubscribeAttendance = wsService.subscribe('attendance_marked', () => {
+      loadTodayAttendance();
+      loadAttendanceHistory();
+    });
+
+    const unsubscribeWorkEntry = wsService.subscribe('work_entry_submitted', () => {
+      loadAllWorkEntries();
+      loadTodayAttendance(); // Refresh attendance as work hours may have changed
+    });
+
+    const unsubscribeProduction = wsService.subscribe('production_data_updated', () => {
+      loadAllWorkEntries();
+    });
+
+    return () => {
+      unsubscribeAttendance();
+      unsubscribeWorkEntry();
+      unsubscribeProduction();
+    };
+  }, [loadTodayAttendance, loadAttendanceHistory, loadAllWorkEntries]);
+
   // Calculate total work hours - prioritize todayAttendance.workHours from backend, then work entries, then check-in/check-out times
   const calculateTotalWorkHours = useMemo(() => {
     // First, check if todayAttendance has workHours from backend
@@ -350,29 +374,6 @@ export default function EmployeeAttendance() {
               Track your attendance, work hours, and performance
             </p>
           </div>
-          <Button 
-            onClick={() => {
-              loadTodayAttendance();
-              loadAttendanceHistory();
-              loadAllWorkEntries();
-            }}
-            variant="outline"
-            size="sm"
-            disabled={loading}
-            className="w-full sm:w-auto"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Refreshing...
-              </>
-            ) : (
-              <>
-                <Activity className="h-4 w-4 mr-2" />
-                Refresh
-              </>
-            )}
-          </Button>
         </div>
 
         {/* Current Status Card */}

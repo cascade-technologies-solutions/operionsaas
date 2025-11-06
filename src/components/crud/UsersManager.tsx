@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Users, UserPlus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useApi';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, QUERY_KEYS } from '@/hooks/useApi';
 import { UserForm } from './UserForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { User, UserRole } from '@/types';
 import { userService } from '@/services/api';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTenant } from '@/contexts/TenantContext';
+import { wsService } from '@/services/websocket.service';
 
 export const UsersManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,11 +22,36 @@ export const UsersManager = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isResetting, setIsResetting] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { factoryId } = useTenant();
 
   const { data: users, isLoading } = useUsers(roleFilter === 'all' ? undefined : roleFilter);
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
+
+  // WebSocket listeners for real-time updates from other sessions
+  useEffect(() => {
+    if (!factoryId) return;
+
+    const unsubscribeCreated = wsService.subscribe('user_created', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId) });
+    });
+
+    const unsubscribeUpdated = wsService.subscribe('user_updated', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId) });
+    });
+
+    const unsubscribeDeleted = wsService.subscribe('user_deleted', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users(factoryId) });
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeUpdated();
+      unsubscribeDeleted();
+    };
+  }, [factoryId, queryClient]);
 
   const filteredUsers = users?.filter(user =>
     (user.profile.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||

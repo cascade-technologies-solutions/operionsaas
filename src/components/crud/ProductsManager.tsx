@@ -1,24 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useApi';
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, QUERY_KEYS } from '@/hooks/useApi';
 import { ProductForm } from './ProductForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { Product } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useTenant } from '@/contexts/TenantContext';
+import { wsService } from '@/services/websocket.service';
 
 export const ProductsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { factoryId } = useTenant();
 
   const { data: products, isLoading } = useProducts();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+
+  // WebSocket listeners for real-time updates from other sessions
+  useEffect(() => {
+    if (!factoryId) return;
+
+    const unsubscribeCreated = wsService.subscribe('product_created', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId) });
+    });
+
+    const unsubscribeUpdated = wsService.subscribe('product_updated', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId) });
+    });
+
+    const unsubscribeDeleted = wsService.subscribe('product_deleted', () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products(factoryId) });
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeUpdated();
+      unsubscribeDeleted();
+    };
+  }, [factoryId, queryClient]);
 
   const filteredProducts = products?.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
