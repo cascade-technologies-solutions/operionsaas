@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,7 @@ export default function DisplayPage() {
   const [pollIntervalMs, setPollIntervalMs] = useState(30000); // Start at 30s
   const rateLimitResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     // Prevent concurrent requests
     if (isLoadingData) {
       return;
@@ -162,7 +162,7 @@ export default function DisplayPage() {
       setLoading(false);
       setIsLoadingData(false);
     }
-  };
+  }, [isLoadingData]);
 
   useEffect(() => {
     let currentPollingInterval: NodeJS.Timeout | null = null;
@@ -175,6 +175,7 @@ export default function DisplayPage() {
       try {
         await wsService.connect();
         setWsConnected(true);
+        console.log('✅ WebSocket connected for real-time updates');
         // Clear any existing polling interval when WebSocket connects
         if (currentPollingInterval) {
           clearInterval(currentPollingInterval);
@@ -185,6 +186,26 @@ export default function DisplayPage() {
         console.error('❌ WebSocket connection failed:', error);
         setWsConnected(false);
         // Fallback to polling if WebSocket fails - use current interval (with exponential backoff)
+        if (!currentPollingInterval) {
+          currentPollingInterval = setInterval(() => {
+            loadData();
+          }, pollIntervalMs);
+          setPollingInterval(currentPollingInterval);
+        }
+      }
+    };
+
+    // Subscribe to production data updates - refresh data when event is received
+    const unsubscribe = wsService.subscribe('production_data_updated', () => {
+      console.log('📡 WebSocket: Production data updated, refreshing display...');
+      loadData();
+    });
+
+    connectWebSocket();
+
+    // Set up polling as fallback (only if WebSocket is not connected)
+    const checkConnectionAndPoll = () => {
+      if (wsService.getConnectionState() !== 'connected' && !currentPollingInterval) {
         currentPollingInterval = setInterval(() => {
           loadData();
         }, pollIntervalMs);
@@ -192,16 +213,24 @@ export default function DisplayPage() {
       }
     };
 
-    // Subscribe to production data updates
-    const unsubscribe = wsService.subscribe('production_data_updated', () => {
-      loadData();
-    });
-
-    connectWebSocket();
+    // Check connection status periodically
+    const connectionCheckInterval = setInterval(() => {
+      const connectionState = wsService.getConnectionState();
+      setWsConnected(connectionState === 'connected');
+      if (connectionState === 'connected' && currentPollingInterval) {
+        clearInterval(currentPollingInterval);
+        currentPollingInterval = null;
+        setPollingInterval(null);
+      } else if (connectionState !== 'connected') {
+        checkConnectionAndPoll();
+      }
+    }, 5000); // Check every 5 seconds
 
     return () => {
       unsubscribe();
-      wsService.disconnect();
+      clearInterval(connectionCheckInterval);
+      // Don't disconnect WebSocket here as it might be used by other components
+      // wsService.disconnect();
       // Clean up polling interval
       if (currentPollingInterval) {
         clearInterval(currentPollingInterval);
@@ -213,7 +242,7 @@ export default function DisplayPage() {
         rateLimitResetTimeoutRef.current = null;
       }
     };
-  }, [pollIntervalMs]); // Recreate interval when poll interval changes
+  }, [loadData, pollIntervalMs]); // Include loadData and pollIntervalMs in dependencies
 
   const getEfficiencyColor = (efficiency: number) => {
     if (efficiency >= 90) return 'text-green-400';
@@ -291,6 +320,15 @@ export default function DisplayPage() {
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
             {/* WebSocket Status */}
+            <div className="flex items-center space-x-2">
+              <Badge 
+                variant={wsConnected ? "default" : "secondary"}
+                className={wsConnected ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"}
+              >
+                <Monitor className="h-3 w-3 mr-1" />
+                {wsConnected ? 'Live' : 'Polling'}
+              </Badge>
+            </div>
 
             {/* View Toggle */}
             <div className="flex items-center space-x-2">

@@ -463,12 +463,20 @@ export default function EmployeeDashboard() {
 
     // Handler that refreshes both dashboard data and quantity status
     const handleProductionUpdate = async () => {
+      console.log('📡 WebSocket: Production data updated, refreshing dashboard and process status...');
       // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
       await loadDashboardData(true);
       // Refresh quantity status if process and product are selected
       if (selectedProcess && selectedProduct) {
         // Add small delay to ensure backend has processed the update
         // Use skipCache=true to bypass API cache and get fresh data
+        setTimeout(() => {
+          loadProcessQuantityStatus(selectedProcess, true).catch(err => {
+            console.error('Failed to refresh quantity status after WebSocket update:', err);
+          });
+        }, 500);
+      } else if (selectedProcess) {
+        // Refresh process status even if product is not selected
         setTimeout(() => {
           loadProcessQuantityStatus(selectedProcess, true).catch(err => {
             console.error('Failed to refresh quantity status after WebSocket update:', err);
@@ -512,8 +520,27 @@ export default function EmployeeDashboard() {
   // All products are shown - no filtering based on process
   // Products are filtered by factory at the backend level
 
-
   // Connect to WebSocket for real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    const connectWebSocket = async () => {
+      try {
+        await wsService.connect();
+        console.log('✅ WebSocket connected for real-time updates');
+      } catch (error) {
+        console.error('❌ WebSocket connection failed:', error);
+        // Continue without WebSocket - subscriptions will still work if connection succeeds later
+      }
+    };
+
+    connectWebSocket();
+
+    // Cleanup on unmount - don't disconnect as other components might be using it
+    return () => {
+      // wsService.disconnect(); // Don't disconnect - might be used by other components
+    };
+  }, [user]);
 
   // Refresh data when component comes into focus
   useEffect(() => {
