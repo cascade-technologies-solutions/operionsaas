@@ -203,8 +203,17 @@ const UserManagement = () => {
 
 
       if (editingUser) {
-        const response = await userService.updateUser(editingUser.id, userData);
-        setUsers(prev => prev.map(u => u.id === editingUser.id ? response.data : u));
+        const userId = editingUser._id || editingUser.id;
+        if (!userId) {
+          toast({
+            title: 'Error',
+            description: 'User ID is missing',
+            variant: 'destructive',
+          });
+          return;
+        }
+        const response = await userService.updateUser(userId, userData);
+        setUsers(prev => prev.map(u => (u._id === userId || u.id === userId) ? response.data : u));
         toast({
           title: 'Success',
           description: 'User updated successfully',
