@@ -459,6 +459,20 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     if (!user) return;
 
+    // Handler that refreshes both dashboard data and quantity status
+    const handleProductionUpdate = async () => {
+      await loadDashboardData();
+      // Refresh quantity status if process and product are selected
+      if (selectedProcess && selectedProduct) {
+        // Add small delay to ensure backend has processed the update
+        setTimeout(() => {
+          loadProcessQuantityStatus(selectedProcess).catch(err => {
+            console.error('Failed to refresh quantity status after WebSocket update:', err);
+          });
+        }, 500);
+      }
+    };
+
     const unsubs = [
       wsService.subscribe('product_created', loadDashboardData),
       wsService.subscribe('product_updated', loadDashboardData),
@@ -466,24 +480,24 @@ export default function EmployeeDashboard() {
       wsService.subscribe('process_created', loadDashboardData),
       wsService.subscribe('process_updated', loadDashboardData),
       wsService.subscribe('process_deleted', loadDashboardData),
-      wsService.subscribe('production_data_updated', loadDashboardData),
-      wsService.subscribe('work_entry_submitted', loadDashboardData),
-      wsService.subscribe('work_entry_validated', loadDashboardData)
+      wsService.subscribe('production_data_updated', handleProductionUpdate),
+      wsService.subscribe('work_entry_submitted', handleProductionUpdate),
+      wsService.subscribe('work_entry_validated', handleProductionUpdate)
     ];
 
     return () => {
       unsubs.forEach(u => u());
     };
-  }, [user, loadDashboardData]);
+  }, [user, loadDashboardData, selectedProcess, selectedProduct]);
 
-  // Load quantity status when process is selected
+  // Load quantity status when process or product is selected
   useEffect(() => {
-    if (selectedProcess) {
+    if (selectedProcess && selectedProduct) {
       loadProcessQuantityStatus(selectedProcess);
     } else {
       setProcessQuantityStatus(null);
     }
-  }, [selectedProcess]);
+  }, [selectedProcess, selectedProduct]);
 
   // Reset quantities when selections change
   useEffect(() => {
@@ -571,18 +585,50 @@ export default function EmployeeDashboard() {
   const loadAllWorkEntries = async () => {
     try {
       const userId = user?.id || user?._id;
-      if (!userId) return;
+      if (!userId) {
+        console.warn('⚠️ Cannot load work entries: User ID not available');
+        return;
+      }
 
-      const response = await workEntryService.getWorkEntriesByEmployee(userId);
+      console.log('📥 Loading work entries for employee:', userId);
+      const response = await workEntryService.getWorkEntriesByEmployee(userId, { today: 'true' });
+      
+      console.log('📥 Work entries API response:', {
+        response,
+        hasData: response && typeof response === 'object' && 'data' in response,
+        dataType: response?.data ? typeof response.data : 'undefined'
+      });
       
       const workEntriesData = response.data || response;
+      
       if (Array.isArray(workEntriesData)) {
+        console.log(`✅ Loaded ${workEntriesData.length} work entries`);
         setAllWorkEntries(workEntriesData);
+      } else if (workEntriesData && typeof workEntriesData === 'object') {
+        // Handle nested response structures
+        const dataObj = workEntriesData as any;
+        if ('workEntries' in dataObj && Array.isArray(dataObj.workEntries)) {
+          console.log(`✅ Loaded ${dataObj.workEntries.length} work entries from nested structure`);
+          setAllWorkEntries(dataObj.workEntries);
+        } else if (Array.isArray(dataObj)) {
+          console.log(`✅ Loaded ${dataObj.length} work entries from array`);
+          setAllWorkEntries(dataObj);
+        } else {
+          console.warn('⚠️ Unexpected work entries response structure:', workEntriesData);
+          setAllWorkEntries([]);
+        }
       } else {
+        console.warn('⚠️ Work entries data is not an array:', workEntriesData);
         setAllWorkEntries([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       // Failed to load work entries
+      console.error('❌ Failed to load work entries:', {
+        error: error.message,
+        stack: error.stack,
+        response: error.response,
+        status: error.status
+      });
       setAllWorkEntries([]);
     }
   };
@@ -1285,7 +1331,18 @@ export default function EmployeeDashboard() {
           setCapturedPhoto(null);
           // Keep Product, Process, Machine, and Shift selections
           
-          // Then reload data from server to ensure consistency
+          // Immediately reload work entries to ensure UI shows the new entry
+          // This doesn't set loading state, so UI won't be disrupted
+          try {
+            console.log('🔄 Reloading work entries immediately after direct submission...');
+            await loadAllWorkEntries();
+            console.log('✅ Work entries reloaded immediately');
+          } catch (reloadError) {
+            console.error('❌ Failed to reload work entries immediately:', reloadError);
+            // Don't show error to user - will retry with loadDashboardData
+          }
+          
+          // Then reload full dashboard data from server to ensure consistency
           // Use setTimeout to ensure state update completes first
           setTimeout(async () => {
             try {
@@ -1546,23 +1603,56 @@ export default function EmployeeDashboard() {
       setRejectedQuantity('');
       setCapturedPhoto(null);
       
-      // Then reload data from server to ensure consistency
+      // Immediately reload work entries to ensure UI shows the new entry
+      // This doesn't set loading state, so UI won't be disrupted
+      try {
+        console.log('🔄 Reloading work entries immediately after submission...');
+        await loadAllWorkEntries();
+        console.log('✅ Work entries reloaded immediately');
+      } catch (reloadError) {
+        console.error('❌ Failed to reload work entries immediately:', reloadError);
+        // Don't show error to user - will retry with loadDashboardData
+      }
+      
+      // Then reload full dashboard data from server to ensure consistency
       // Use setTimeout to ensure state update completes first
+      // Increased timeout to ensure backend has processed quantity deduction
       setTimeout(async () => {
         try {
           await loadDashboardData();
           console.log('✅ Dashboard data reloaded after work entry submission');
           
           // Refresh process quantity status to update Process Status card
-          if (selectedProcess) {
-            await loadProcessQuantityStatus(selectedProcess);
-            console.log('✅ Process quantity status refreshed');
+          // Retry logic to handle potential race conditions
+          if (selectedProcess && selectedProduct) {
+            let retries = 3;
+            let lastError = null;
+            
+            while (retries > 0) {
+              try {
+                await new Promise(resolve => setTimeout(resolve, 300)); // Wait for backend processing
+                await loadProcessQuantityStatus(selectedProcess);
+                console.log('✅ Process quantity status refreshed');
+                break;
+              } catch (refreshError) {
+                lastError = refreshError;
+                retries--;
+                if (retries > 0) {
+                  console.warn(`⚠️ Failed to refresh quantity status, retrying... (${retries} attempts left)`);
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                }
+              }
+            }
+            
+            if (retries === 0 && lastError) {
+              console.error('❌ Failed to refresh quantity status after all retries:', lastError);
+            }
           }
         } catch (reloadError) {
           console.error('❌ Failed to reload dashboard data:', reloadError);
           // Don't show error to user - optimistic update already happened
         }
-      }, 100);
+      }, 300);
       
     } catch (error: any) {
       console.error('❌ Production submission error:', {
