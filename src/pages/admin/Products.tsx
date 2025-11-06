@@ -138,9 +138,24 @@ const Products = () => {
         processService.getProcesses(),
       ]);
       
-      // Handle nested data structure from backend
-      const productsArray = (productData as any).products || (productData as any).data?.products || (productData as any).data || [];
-      const processesArray = (processData as any).processes || (processData as any).data?.processes || (processData as any).data || [];
+      // productService.getProducts() returns { data: Product[] }
+      // So we need to access productData.data to get the array
+      const productsArray = Array.isArray(productData?.data) 
+        ? productData.data 
+        : Array.isArray(productData) 
+          ? productData 
+          : (productData as any)?.products || (productData as any)?.data?.products || [];
+      
+      // processService.getProcesses() may return different structures
+      const processesArray = Array.isArray(processData?.processes)
+        ? processData.processes
+        : Array.isArray(processData?.data?.processes)
+          ? processData.data.processes
+          : Array.isArray(processData?.data)
+            ? processData.data
+            : Array.isArray(processData)
+              ? processData
+              : (processData as any)?.processes || [];
       
       // Remove duplicate processes based on _id to fix duplicate display issue
       const uniqueProcesses = processesArray.filter((process: any, index: number, self: any[]) => {
