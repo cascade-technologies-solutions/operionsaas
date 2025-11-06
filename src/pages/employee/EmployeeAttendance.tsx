@@ -26,7 +26,7 @@ import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } fro
 import { useAuthStore } from '@/stores/authStore';
 import { attendanceService, workEntryService, machineService } from '@/services/api';
 import { Attendance, WorkEntry, Machine } from '@/types';
-import { formatDate, formatTime, formatHours, calculateHours } from '@/utils/dateUtils';
+import { formatDate, formatTime, formatHours, formatWorkHours, calculateHours } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 
 /**
@@ -395,7 +395,7 @@ export default function EmployeeAttendance() {
                   <Timer className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                 </div>
                 <p className="text-xl sm:text-2xl font-bold text-primary">
-                  {calculateTotalWorkHours}
+                  {formatWorkHours(calculateTotalWorkHours)}
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Hours</p>
               </div>
@@ -542,7 +542,7 @@ export default function EmployeeAttendance() {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                           <span className="font-semibold text-base sm:text-lg">Total Work Hours Today:</span>
                           <span className="text-xl sm:text-2xl font-bold text-primary">
-                            {calculateTotalWorkHours} hours
+                            {formatWorkHours(calculateTotalWorkHours)}
                           </span>
                         </div>
                       </div>
@@ -646,7 +646,7 @@ export default function EmployeeAttendance() {
                                   {checkOutTime ? formatTime(checkOutTime) : 'On duty'}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-medium">
-                                  {workHours > 0 ? `${formatHours(workHours)}` : '-'}
+                                  {workHours > 0 ? formatWorkHours(workHours) : '-'}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   <Badge 

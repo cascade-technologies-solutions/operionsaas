@@ -65,6 +65,25 @@ export const formatHours = (hours: number): string => {
 };
 
 /**
+ * Format work hours as hours and minutes (e.g., "1h 33 minutes" or "33 minutes")
+ */
+export const formatWorkHours = (hours: number): string => {
+  if (hours <= 0 || isNaN(hours)) return '0 minutes';
+  
+  const wholeHours = Math.floor(hours);
+  const decimalPart = hours - wholeHours;
+  const minutes = Math.round(decimalPart * 60);
+  
+  if (wholeHours === 0) {
+    return `${minutes} minutes`;
+  } else if (minutes === 0) {
+    return `${wholeHours}h`;
+  } else {
+    return `${wholeHours}h ${minutes} minutes`;
+  }
+};
+
+/**
  * Get relative time (e.g., "2 hours ago")
  */
 export const getRelativeTime = (dateString: string | Date): string => {

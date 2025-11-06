@@ -34,7 +34,7 @@ import {
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { useNavigate } from 'react-router-dom';
-import { formatDate, formatTime, formatHours, calculateHours } from '@/utils/dateUtils';
+import { formatDate, formatTime, formatHours, formatWorkHours, calculateHours } from '@/utils/dateUtils';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { CameraCapture } from '@/components/CameraCapture';
 
@@ -1653,7 +1653,7 @@ export default function EmployeeDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Total Work Hours:</span>
                   <span className="text-sm text-muted-foreground">
-                    {calculateTotalWorkHours} hours
+                    {formatWorkHours(calculateTotalWorkHours)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
