@@ -140,9 +140,12 @@ const Products = () => {
       
       // Debug logging to understand the response structure
       console.log('🔍 Product data received:', productData);
+      console.log('🔍 Process data received:', processData);
       console.log('🔍 Product data type:', typeof productData);
       console.log('🔍 Is productData.data an array?', Array.isArray(productData?.data));
       console.log('🔍 productData.data:', productData?.data);
+      console.log('🔍 Is processData.data an array?', Array.isArray(processData?.data));
+      console.log('🔍 processData.data:', processData?.data);
       
       // productService.getProducts() returns { data: Product[] }
       // So we need to access productData.data to get the array
@@ -164,16 +167,25 @@ const Products = () => {
       console.log('✅ Extracted products array:', productsArray);
       console.log('✅ Products count:', productsArray.length);
       
-      // processService.getProcesses() may return different structures
-      const processesArray = Array.isArray(processData?.processes)
-        ? processData.processes
-        : Array.isArray(processData?.data?.processes)
-          ? processData.data.processes
-          : Array.isArray(processData?.data)
-            ? processData.data
-            : Array.isArray(processData)
-              ? processData
-              : (processData as any)?.processes || [];
+      // processService.getProcesses() returns { data: Process[] }
+      // So we need to access processData.data to get the array
+      let processesArray: Process[] = [];
+      
+      if (Array.isArray(processData?.data)) {
+        processesArray = processData.data;
+      } else if (Array.isArray(processData?.processes)) {
+        processesArray = processData.processes;
+      } else if (Array.isArray(processData)) {
+        processesArray = processData;
+      } else if ((processData as any)?.data?.processes && Array.isArray((processData as any).data.processes)) {
+        processesArray = (processData as any).data.processes;
+      } else {
+        console.warn('⚠️ Could not extract processes array from:', processData);
+        processesArray = [];
+      }
+      
+      console.log('✅ Extracted processes array:', processesArray);
+      console.log('✅ Processes count:', processesArray.length);
       
       // Remove duplicate processes based on _id to fix duplicate display issue
       const uniqueProcesses = processesArray.filter((process: any, index: number, self: any[]) => {

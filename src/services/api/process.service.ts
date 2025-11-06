@@ -4,18 +4,40 @@ import { apiClient } from './client';
 
 export const processService = {
   async getProcesses(): Promise<{ data: Process[] }> {
-    const response = await apiClient.get('/processes?limit=100');
+    // Clear cache for processes to ensure fresh data
+    // This prevents stale/cached data from other endpoints
+    if (typeof (apiClient as any).clearCache === 'function') {
+      (apiClient as any).clearCache('/processes');
+    }
     
-    // Handle different response formats
-    if (response.data?.data?.processes) {
-      return { data: response.data.data.processes };
-    } else if (response.data?.processes) {
-      return { data: response.data.processes };
-    } else if (Array.isArray(response.data)) {
-      return { data: response.data };
+    // Pass limit=100 to fetch all processes (backend default is 10)
+    // Add timestamp to ensure fresh request (bypasses any remaining cache)
+    const timestamp = Date.now();
+    console.log('🔍 Calling apiClient.get("/processes", { limit: 100, _t: timestamp })');
+    const response = await apiClient.get('/processes', { limit: 100, _t: timestamp });
+    
+    // Debug logging to understand the response structure
+    console.log('🔍 Raw API response (processes):', response);
+    console.log('🔍 Response message:', (response as any)?.message);
+    console.log('🔍 response.data:', (response as any)?.data);
+    console.log('🔍 response.data?.processes:', (response as any)?.data?.processes);
+    
+    // Handle different response formats - backend returns: { success: true, data: { processes: [...], pagination: {...} } }
+    if ((response as any)?.data?.data?.processes) {
+      console.log('✅ Using response.data.data.processes');
+      return { data: (response as any).data.data.processes };
+    } else if ((response as any)?.data?.processes) {
+      console.log('✅ Using response.data.processes');
+      return { data: (response as any).data.processes };
+    } else if (Array.isArray((response as any)?.data)) {
+      console.log('✅ Using response.data as array');
+      return { data: (response as any).data };
     } else if (Array.isArray(response)) {
+      console.log('✅ Using response as array');
       return { data: response };
     } else {
+      console.warn('⚠️ No processes found in response, returning empty array');
+      console.warn('⚠️ Full response:', JSON.stringify(response, null, 2));
       return { data: [] };
     }
   },
