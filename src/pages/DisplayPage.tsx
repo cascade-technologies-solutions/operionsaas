@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,7 @@ export default function DisplayPage() {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [pollIntervalMs, setPollIntervalMs] = useState(30000); // Start at 30s
+  const rateLimitResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadData = async () => {
     // Prevent concurrent requests
@@ -50,6 +51,11 @@ export default function DisplayPage() {
         setLastUpdated(new Date());
         // Reset polling interval to default on successful request
         setPollIntervalMs(30000);
+        // Clear any pending rate limit reset timeout since we're back to normal
+        if (rateLimitResetTimeoutRef.current) {
+          clearTimeout(rateLimitResetTimeoutRef.current);
+          rateLimitResetTimeoutRef.current = null;
+        }
       } else {
         setData({
           products: [],
@@ -94,11 +100,28 @@ export default function DisplayPage() {
       const isRateLimitError = error?.status === 429 || error?.response?.status === 429;
       
       if (isRateLimitError) {
-        // Exponential backoff: double the interval (max 5 minutes)
-        setPollIntervalMs(prev => Math.min(prev * 2, 300000)); // Max 5 minutes
-        const retryAfter = error?.responseData?.retryAfter || error?.retryAfter;
-        const resetTime = retryAfter ? ` (Retry after ${retryAfter}s)` : '';
-        toast.error(`Rate limit exceeded. Polling interval increased.${resetTime}`);
+        // Get retryAfter from error (in seconds)
+        // Check both responseData.retryAfter and direct retryAfter property
+        const retryAfter = error?.responseData?.retryAfter || error?.retryAfter || 5; // Default to 5 seconds if not provided
+        const retryAfterMs = retryAfter * 1000;
+        
+        // Clear any existing rate limit reset timeout
+        if (rateLimitResetTimeoutRef.current) {
+          clearTimeout(rateLimitResetTimeoutRef.current);
+        }
+        
+        // Temporarily increase polling interval during rate limit period
+        // Use retryAfter + a small buffer (2 seconds) to ensure we wait long enough
+        const tempInterval = Math.min(retryAfterMs + 2000, 60000); // Max 60 seconds
+        setPollIntervalMs(tempInterval);
+        
+        // Set a timeout to reset back to default interval quickly after rate limit expires
+        rateLimitResetTimeoutRef.current = setTimeout(() => {
+          setPollIntervalMs(30000); // Reset to default 30s
+          toast.success('Rate limit reset. Resuming normal polling.');
+        }, retryAfterMs);
+        
+        toast.error(`Rate limit exceeded. Will retry after ${retryAfter}s.`);
       } else {
         setError(error?.response?.data?.message || error?.message || 'Failed to load data');
         toast.error('Failed to load data');
@@ -184,6 +207,11 @@ export default function DisplayPage() {
         clearInterval(currentPollingInterval);
       }
       setPollingInterval(null);
+      // Clean up rate limit reset timeout
+      if (rateLimitResetTimeoutRef.current) {
+        clearTimeout(rateLimitResetTimeoutRef.current);
+        rateLimitResetTimeoutRef.current = null;
+      }
     };
   }, [pollIntervalMs]); // Recreate interval when poll interval changes
 
