@@ -1,11 +1,16 @@
+import { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CameraCapture } from '@/components/CameraCapture';
 import { productionService, productService, machineService, factoryService } from '@/services/api';
-import { apiClient } from '@/services/api/client';
 import { Product, Machine } from '@/types';
 import { Camera, Loader2, CheckCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
+import { Layout } from '@/components/Layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface Shift {
   name: string;
@@ -25,6 +30,9 @@ interface ProcessStatus {
   stageOrder: number;
   isFirstStage: boolean;
 }
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error && error.message ? error.message : fallback;
 
 export default function ProductionEntry() {
   const { user } = useAuthStore();
@@ -85,11 +93,11 @@ export default function ProductionEntry() {
   const loadProducts = async () => {
     try {
       const response = await productService.getProducts();
-      const productsArray = response.data?.products || response.data || [];
-      setProducts(Array.isArray(productsArray) ? productsArray : []);
-    } catch (error: any) {
+      const productsArray = Array.isArray(response.data) ? response.data : [];
+      setProducts(productsArray);
+    } catch (error) {
       console.error('Failed to load products:', error);
-      toast.error('Failed to load products');
+      toast.error(getErrorMessage(error, 'Failed to load products'));
     }
   };
 
@@ -98,9 +106,9 @@ export default function ProductionEntry() {
     try {
       const response = await productionService.getProcessStagesByProduct(productId);
       setProcessStages(response.data.stages || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to load process stages:', error);
-      toast.error(error.message || 'Failed to load process stages');
+      toast.error(getErrorMessage(error, 'Failed to load process stages'));
       setProcessStages([]);
     } finally {
       setLoadingStages(false);
@@ -111,30 +119,37 @@ export default function ProductionEntry() {
     try {
       const response = await machineService.getMachines();
       setMachines(response.data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to load machines:', error);
-      toast.error('Failed to load machines');
+      toast.error(getErrorMessage(error, 'Failed to load machines'));
     }
   };
 
   const loadShifts = async () => {
     try {
-      if (!user?.factoryId) {
-        return;
-      }
+      const response = await factoryService.getShifts();
+      const shiftsData = response.data?.shifts ?? response.data;
 
-      // Clear cached factory record so we always get the latest shifts
-      apiClient.clearCache(`/factories/${user.factoryId}`);
+      const rawShifts = Array.isArray(shiftsData) ? (shiftsData as unknown[]) : [];
+      const activeShifts = rawShifts
+        .filter((shift): shift is Shift => {
+          const candidate = shift as Partial<Shift>;
+          return (
+            typeof candidate?.name === 'string' &&
+            typeof candidate?.startTime === 'string' &&
+            typeof candidate?.endTime === 'string'
+          );
+        })
+        .map((shift) => ({
+          ...shift,
+          isActive: shift.isActive !== false
+        }));
 
-      const response = await factoryService.getFactory(user.factoryId, { noCache: true });
-      const factoryData = response.data || response;
-      const shiftsArray = factoryData?.settings?.shifts || [];
-
-      // Only keep active shifts
-      setShifts(Array.isArray(shiftsArray) ? shiftsArray.filter(shift => shift.isActive !== false) : []);
-    } catch (error: any) {
+      setShifts(activeShifts);
+    } catch (error) {
       console.error('Failed to load shifts:', error);
-      toast.error('Failed to load shifts');
+      toast.error(getErrorMessage(error, 'Failed to load shifts'));
+      setShifts([]);
     }
   };
 
@@ -143,9 +158,9 @@ export default function ProductionEntry() {
     try {
       const response = await productionService.getProcessStatus(productId, stageId);
       setProcessStatus(response.data);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to load process status:', error);
-      toast.error(error.message || 'Failed to load process status');
+      toast.error(getErrorMessage(error, 'Failed to load process status'));
       setProcessStatus(null);
     } finally {
       setLoadingStatus(false);
@@ -158,9 +173,9 @@ export default function ProductionEntry() {
       const response = await productionService.checkIn();
       setCheckinTime(response.data.checkinTime);
       toast.success('Check-in successful');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Check-in failed:', error);
-      toast.error(error.message || 'Failed to check in');
+      toast.error(getErrorMessage(error, 'Failed to check in'));
     } finally {
       setCheckingIn(false);
     }
@@ -238,9 +253,9 @@ export default function ProductionEntry() {
       setRejectedQuantity('');
       setCapturedPhoto(null);
       setProcessStatus(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Submit failed:', error);
-      toast.error(error.message || 'Failed to submit production entry');
+      toast.error(getErrorMessage(error, 'Failed to submit production entry'));
     } finally {
       setLoading(false);
     }
@@ -367,11 +382,14 @@ export default function ProductionEntry() {
                     <SelectValue placeholder="Select a machine" />
                   </SelectTrigger>
                   <SelectContent>
-                    {machines.map((machine) => (
-                      <SelectItem key={machine._id || machine.id} value={String(machine._id || machine.id)}>
-                        {machine.name}
-                      </SelectItem>
-                    ))}
+                    {machines.map((machine) => {
+                      const machineId = String(machine._id);
+                      return (
+                        <SelectItem key={machineId} value={machineId}>
+                          {machine.name}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
