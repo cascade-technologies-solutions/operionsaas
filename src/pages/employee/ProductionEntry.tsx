@@ -35,6 +35,8 @@ const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
 
 const extractShiftArray = (payload: unknown): unknown[] => {
+  console.log('🔍 ProductionEntry: extractShiftArray received payload', payload);
+
   if (Array.isArray(payload)) {
     return payload;
   }
@@ -46,14 +48,17 @@ const extractShiftArray = (payload: unknown): unknown[] => {
   const record = payload as Record<string, unknown>;
 
   if ('shifts' in record && Array.isArray(record.shifts)) {
+    console.log('🔍 ProductionEntry: extractShiftArray returning record.shifts', record.shifts);
     return record.shifts;
   }
 
   if ('data' in record) {
+    console.log('🔍 ProductionEntry: extractShiftArray recursing into record.data', record.data);
     return extractShiftArray(record.data);
   }
 
   if ('settings' in record) {
+    console.log('🔍 ProductionEntry: extractShiftArray recursing into record.settings', record.settings);
     return extractShiftArray(record.settings);
   }
 
@@ -61,12 +66,16 @@ const extractShiftArray = (payload: unknown): unknown[] => {
 };
 
 const normalizeShifts = (shiftsData: unknown): Shift[] => {
+  console.log('🔍 ProductionEntry: normalizeShifts received', shiftsData);
+
   if (!Array.isArray(shiftsData)) {
     return [];
   }
 
   return shiftsData
     .map((shift) => {
+      console.log('🔍 ProductionEntry: normalizing shift entry', shift);
+
       if (!shift || typeof shift !== 'object') {
         return null;
       }
@@ -88,7 +97,11 @@ const normalizeShifts = (shiftsData: unknown): Shift[] => {
         isActive
       };
     })
-    .filter((shift): shift is Shift => Boolean(shift?.isActive));
+    .filter((shift): shift is Shift => {
+      const keep = Boolean(shift?.isActive);
+      console.log('🔍 ProductionEntry: shift filtered result', shift, keep);
+      return keep;
+    });
 };
 
 export default function ProductionEntry() {
@@ -173,9 +186,13 @@ const loadShifts = useCallback(async () => {
   try {
     // Primary attempt: dedicated shifts endpoint
     const response = await factoryService.getShifts();
+    console.log('🔍 ProductionEntry: getShifts response', response);
+
     const normalizedShifts = normalizeShifts(extractShiftArray(response));
+    console.log('🔍 ProductionEntry: normalized shifts from /factories/shifts', normalizedShifts);
 
     if (normalizedShifts.length > 0) {
+      console.log('✅ ProductionEntry: using shifts from /factories/shifts', normalizedShifts);
       setShifts(normalizedShifts);
       return;
     }
@@ -196,6 +213,7 @@ const loadShifts = useCallback(async () => {
       extractShiftArray(factoryResponse.data ?? factoryResponse)
     );
 
+    console.log('🔄 ProductionEntry: fallback normalized shifts', normalizedShifts);
     setShifts(normalizedShifts);
   } catch (fallbackError) {
     console.error('Fallback shift load failed:', fallbackError);
