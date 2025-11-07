@@ -400,14 +400,14 @@ export default function EmployeeDashboard() {
               } catch (fallbackError) {
                 console.error('Fallback shift load failed:', fallbackError);
                 // Use default shifts as last resort
-                const defaultShifts = [
-                  { name: 'Morning', startTime: '08:00 AM', endTime: '04:00 PM', isActive: true },
-                  { name: 'Evening', startTime: '04:00 PM', endTime: '12:00 AM', isActive: true },
-                  { name: 'Night', startTime: '12:00 AM', endTime: '08:00 AM', isActive: true }
-                ];
-                setShifts(defaultShifts);
-                if (!getSelectionFromStorage('employee_selected_shift')) {
-                  setSelectedShift('Morning');
+            const defaultShifts = [
+              { name: 'Morning', startTime: '08:00 AM', endTime: '04:00 PM', isActive: true },
+              { name: 'Evening', startTime: '04:00 PM', endTime: '12:00 AM', isActive: true },
+              { name: 'Night', startTime: '12:00 AM', endTime: '08:00 AM', isActive: true }
+            ];
+            setShifts(defaultShifts);
+            if (!getSelectionFromStorage('employee_selected_shift')) {
+              setSelectedShift('Morning');
                 }
               }
             }
@@ -465,7 +465,7 @@ export default function EmployeeDashboard() {
           ];
           setShifts(defaultShifts);
           if (!getSelectionFromStorage('employee_selected_shift')) {
-            setSelectedShift('Morning');
+          setSelectedShift('Morning');
           }
         }
         
@@ -602,12 +602,12 @@ export default function EmployeeDashboard() {
         }, 500);
         } else if (selectedProcess) {
           // Refresh process status even if product is not selected
-          setTimeout(() => {
-            loadProcessQuantityStatus(selectedProcess, true).catch(err => {
-              console.error('Failed to refresh quantity status after WebSocket update:', err);
-            });
-          }, 500);
-        }
+        setTimeout(() => {
+          loadProcessQuantityStatus(selectedProcess, true).catch(err => {
+            console.error('Failed to refresh quantity status after WebSocket update:', err);
+          });
+        }, 500);
+      }
         debounceTimer = null;
       }, 500);
     };

@@ -70,17 +70,11 @@ self.addEventListener('activate', (event) => {
 // Fetch event - handle different caching strategies
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
+  const bypassReason = getBypassReason(request);
 
-  // CRITICAL FIX: Don't intercept ANY API requests (including OPTIONS preflight) - let them pass through
-  // Service worker interception of API requests causes CORS preflight failures
-  // because the service worker's fetch() doesn't properly handle OPTIONS requests
-  // and can't preserve the origin context needed for CORS
-  // This applies to ALL HTTP methods (GET, POST, PUT, DELETE, PATCH, OPTIONS, etc.)
-  if (isAPIRequest(request)) {
-    // Don't call event.respondWith() - this allows the request to bypass the service worker entirely
-    // The browser will handle CORS preflight correctly without service worker interference
-    // By returning early without responding, the browser's native fetch handles the request
+  // Ensure CORS-sensitive requests bypass the service worker entirely
+  if (bypassReason) {
+    logBypass(bypassReason, request);
     return;
   }
 
@@ -89,14 +83,18 @@ self.addEventListener('fetch', (event) => {
     // Static assets - Cache First strategy
     if (isStaticAsset(request)) {
       event.respondWith(cacheFirst(request, STATIC_CACHE));
+      return;
     }
-    // Other requests - Stale While Revalidate
-    else {
+
+    // HTML/navigation requests - Network First with fallback to cache
+    if (request.mode === 'navigate') {
       event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE));
+      return;
     }
-  } else {
-    // Non-GET requests - Network only
-    event.respondWith(fetch(request));
+
+    // Other GET requests - Stale While Revalidate
+    event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE));
+    return;
   }
 });
 
@@ -185,12 +183,67 @@ function isStaticAsset(request) {
   return url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/);
 }
 
-// Check if request is for API (both same-origin and cross-origin)
-function isAPIRequest(request) {
+function getBypassReason(request) {
+  // Always bypass preflight requests to let the browser handle CORS
+  if (request.method === 'OPTIONS') {
+    return 'OPTIONS preflight';
+  }
+
+  // Only cache GET requests. All other methods bypass the service worker.
+  if (request.method !== 'GET') {
+    return `Non-GET request (${request.method})`;
+  }
+
   const url = new URL(request.url);
-  // Check if pathname starts with /api/ OR if hostname includes 'api.'
-  // This catches both same-origin (/api/...) and cross-origin (api.cascade-erp.in) API requests
-  return url.pathname.startsWith('/api/') || url.hostname.includes('api.');
+
+  if (isAPIRequest(url)) {
+    return 'API request';
+  }
+
+  // Bypass cross-origin requests that are likely API calls or credentialed fetches
+  const isCrossOrigin = url.origin !== self.location.origin;
+  if (isCrossOrigin && (request.credentials === 'include' || request.mode === 'cors')) {
+    return 'Cross-origin CORS/credentialed request';
+  }
+
+  return null;
+}
+
+// Check if the URL targets an API endpoint (same-origin or cross-origin)
+function isAPIRequest(url) {
+  const pathname = url.pathname;
+  const hostname = url.hostname.toLowerCase();
+
+  if (pathname.startsWith('/api/')) {
+    return true;
+  }
+
+  const apiHostPatterns = [
+    'api.',
+    'backend.',
+    'staging-api.',
+    'localhost',
+    '127.0.0.1'
+  ];
+
+  if (apiHostPatterns.some((pattern) => hostname.includes(pattern))) {
+    return true;
+  }
+
+  // Treat explicit API file extensions (like .json) without static file types as API
+  if (!pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|html)$/) && hostname.includes('api')) {
+    return true;
+  }
+
+  return false;
+}
+
+function logBypass(reason, request) {
+  console.debug('[SW] Bypassing request to allow native CORS handling:', {
+    reason,
+    method: request.method,
+    url: request.url
+  });
 }
 
 // Background sync for offline data

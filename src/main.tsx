@@ -42,31 +42,37 @@ if (sentryDsn) {
     })
 }
 
-// TEMPORARY FIX: Unregister all service workers to fix CORS issues
-// Service workers interfere with CORS preflight requests even when bypassing
+// Re-enable service worker with CORS-safe configuration
 window.addEventListener('load', async () => {
   try {
-    // First, unregister ALL existing service workers
+    // Clean up any previously registered service workers and caches
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
       for (const registration of registrations) {
-        await registration.unregister();
-        console.log('Unregistered service worker to fix CORS');
-      }
-      
-      // Clear all caches
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(name => caches.delete(name)));
-        console.log('Cleared all caches');
+        const result = await registration.unregister();
+        if (result) {
+          console.log('[SW] Removed stale service worker registration');
+        }
       }
     }
-    
-    // Temporarily disabled: Don't register service worker until CORS issue is fully resolved
-    // await pwaService.registerServiceWorker();
-    console.log('Service worker registration temporarily disabled to fix CORS');
+
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      if (cacheNames.length > 0) {
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+        console.log('[SW] Cleared legacy caches before re-registration');
+      }
+    }
+
+    // Register the service worker (handles its own cleanup internally as well)
+    const registered = await pwaService.registerServiceWorker();
+    if (!registered) {
+      console.warn('[SW] Service worker not registered (unsupported or disabled)');
+    } else {
+      console.log('[SW] Service worker registration completed');
+    }
   } catch (error) {
-    console.error('Service worker cleanup failed:', error);
+    console.error('[SW] Service worker setup failed', error);
   }
 });
 
