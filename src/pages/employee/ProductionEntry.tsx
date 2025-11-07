@@ -53,8 +53,13 @@ export default function ProductionEntry() {
   useEffect(() => {
     loadProducts();
     loadMachines();
-    loadShifts();
   }, []);
+
+  useEffect(() => {
+    if (user?.factoryId) {
+      loadShifts();
+    }
+  }, [user?.factoryId]);
 
   // Load process stages when product changes
   useEffect(() => {
@@ -115,13 +120,11 @@ export default function ProductionEntry() {
   const loadShifts = async () => {
     try {
       if (!user?.factoryId) {
-        toast.error('Factory information not found. Please contact your administrator.');
-        setShifts([]);
         return;
       }
 
-      // Clear cached shifts so we always get the latest from factory settings
-      apiClient.clearCache('/factories/');
+      // Clear cached factory record so we always get the latest shifts
+      apiClient.clearCache(`/factories/${user.factoryId}`);
 
       const response = await factoryService.getFactory(user.factoryId, { noCache: true });
       const factoryData = response.data || response;
