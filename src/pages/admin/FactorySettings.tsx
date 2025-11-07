@@ -351,7 +351,7 @@ export default function FactorySettings() {
                         onChange={(e) => setShiftForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="e.g., Morning Shift"
                         required
-                        className="text-sm sm:text-base mt-1"
+                        className="text-sm sm:text-base mt-1 placeholder:text-muted-foreground/70"
                       />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -364,7 +364,7 @@ export default function FactorySettings() {
                           value={shiftForm.startTime}
                           onChange={(e) => setShiftForm(prev => ({ ...prev, startTime: e.target.value }))}
                           required
-                          className="text-sm sm:text-base mt-1"
+                          className="text-sm sm:text-base mt-1 placeholder:text-muted-foreground/70"
                         />
                         <p className="text-xs text-muted-foreground mt-1">Format: 9:00 AM</p>
                       </div>
@@ -377,7 +377,7 @@ export default function FactorySettings() {
                           value={shiftForm.endTime}
                           onChange={(e) => setShiftForm(prev => ({ ...prev, endTime: e.target.value }))}
                           required
-                          className="text-sm sm:text-base mt-1"
+                          className="text-sm sm:text-base mt-1 placeholder:text-muted-foreground/70"
                         />
                         <p className="text-xs text-muted-foreground mt-1">Format: 5:00 PM</p>
                       </div>
@@ -531,7 +531,7 @@ export default function FactorySettings() {
                     onChange={(e) => setGeofenceForm(prev => ({ ...prev, latitude: e.target.value }))}
                     placeholder="12.874547"
                     required
-                    className="text-sm sm:text-base mt-1"
+                    className="text-sm sm:text-base mt-1 placeholder:text-muted-foreground/70"
                   />
                   <p className="text-xs text-muted-foreground mt-1">Range: -90 to 90</p>
                 </div>
@@ -549,7 +549,7 @@ export default function FactorySettings() {
                     onChange={(e) => setGeofenceForm(prev => ({ ...prev, longitude: e.target.value }))}
                     placeholder="74.825728"
                     required
-                    className="text-sm sm:text-base mt-1"
+                    className="text-sm sm:text-base mt-1 placeholder:text-muted-foreground/70"
                   />
                   <p className="text-xs text-muted-foreground mt-1">Range: -180 to 180</p>
                 </div>
@@ -569,7 +569,7 @@ export default function FactorySettings() {
                   onChange={(e) => setGeofenceForm(prev => ({ ...prev, radius: e.target.value }))}
                   placeholder="100"
                   required
-                  className="text-sm sm:text-base mt-1"
+                  className="text-sm sm:text-base mt-1 placeholder:text-muted-foreground/70"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Range: 50 to 1000 meters</p>
               </div>

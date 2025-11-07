@@ -2,7 +2,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { InstallPWAButton } from '@/components/InstallPWAButton';
 import { Factory, Package, Users, BarChart3, Shield, Globe } from 'lucide-react';
 import { PWALandingRedirect } from '@/components/PWALandingRedirect';
 
@@ -50,9 +49,12 @@ const Landing = () => {
         <div className="absolute inset-0 bg-grid-primary/5 -z-10" />
         <div className="container mx-auto px-4 py-16 md:py-24">
           <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6 animate-fade-in">
-              Factory Management System
+            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4 animate-fade-in">
+              Operion
             </h1>
+            <h2 className="text-2xl md:text-4xl font-semibold text-foreground mb-6 animate-fade-in animation-delay-100">
+              Factory Management System
+            </h2>
             <p className="text-xl text-muted-foreground mb-8 animate-fade-in animation-delay-200">
               Streamline your factory operations with our comprehensive multi-tenant management platform
             </p>
@@ -72,11 +74,6 @@ const Landing = () => {
               >
                 Login to Existing Account
               </Button>
-              <InstallPWAButton 
-                size="lg" 
-                variant="outline"
-                className="text-lg px-8"
-              />
             </div>
           </div>
         </div>

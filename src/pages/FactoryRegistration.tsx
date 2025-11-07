@@ -6,11 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Factory, MapPin, User, Mail, Phone, Building, Loader2, ArrowLeft, Lock } from 'lucide-react';
+import { Factory, MapPin, User, Building, Loader2, ArrowLeft, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { factoryService } from '@/services/api';
 
@@ -61,7 +60,7 @@ export default function FactoryRegistration() {
       street: '',
       city: '',
       state: '',
-      country: 'USA',
+      country: 'India',
       zipCode: '',
       latitude: 0,
       longitude: 0,
@@ -120,7 +119,7 @@ export default function FactoryRegistration() {
           form.setValue('longitude', position.coords.longitude);
           toast.success('Location detected successfully');
         },
-        (error) => {
+        () => {
           toast.error('Unable to detect location. Please enter coordinates manually.');
         }
       );
@@ -131,31 +130,31 @@ export default function FactoryRegistration() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-primary/5 p-4">
-        <Card className="w-full max-w-md shadow-xl text-center">
-          <CardHeader>
-            <div className="flex items-center justify-center mb-4">
-              <div className="p-3 bg-success/20 rounded-xl">
-                <Factory className="h-8 w-8 text-success" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-primary/5 p-4 sm:p-6">
+        <Card className="w-full max-w-[95vw] sm:max-w-xl md:max-w-2xl shadow-xl text-center">
+          <CardHeader className="p-6 sm:p-8">
+            <div className="flex items-center justify-center mb-4 sm:mb-5">
+              <div className="p-2 sm:p-3 bg-success/20 rounded-xl">
+                <Factory className="h-6 w-6 sm:h-9 sm:w-9 text-success" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Registration Submitted!</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">Registration Submitted!</CardTitle>
+            <CardDescription className="text-sm sm:text-base mt-3">
               Your factory registration has been submitted successfully.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 sm:space-y-6 p-6 sm:p-8">
             <Alert>
               <AlertDescription>
                 Our team will review your application and notify you via email once approved. 
                 This usually takes 1-2 business days.
               </AlertDescription>
             </Alert>
-            <div className="space-y-2">
-              <Button onClick={() => navigate('/login')} className="w-full">
+            <div className="space-y-3 sm:space-y-4">
+              <Button onClick={() => navigate('/login')} className="w-full py-3 sm:py-4 text-sm sm:text-base">
                 Go to Login
               </Button>
-              <Button variant="outline" onClick={() => navigate('/')} className="w-full">
+              <Button variant="outline" onClick={() => navigate('/')} className="w-full py-3 sm:py-4 text-sm sm:text-base">
                 Back to Home
               </Button>
             </div>
@@ -166,13 +165,13 @@ export default function FactoryRegistration() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 p-4">
-      <div className="container mx-auto max-w-2xl py-8">
-        <div className="mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl py-6 sm:py-10">
+        <div className="mb-4 sm:mb-6">
           <Button
             variant="ghost"
             onClick={() => navigate('/')}
-            className="mb-4"
+            className="mb-2 sm:mb-4 text-sm sm:text-base"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Home
@@ -180,24 +179,24 @@ export default function FactoryRegistration() {
         </div>
 
         <Card className="shadow-xl">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <div className="p-3 bg-gradient-primary rounded-xl shadow-glow">
-                <Factory className="h-8 w-8 text-primary" />
+          <CardHeader className="text-center p-6 sm:p-8">
+            <div className="flex items-center justify-center mb-4 sm:mb-5">
+              <div className="p-2 sm:p-3 bg-gradient-primary rounded-xl shadow-glow">
+                <Factory className="h-6 w-6 sm:h-9 sm:w-9 text-primary" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Register Your Factory</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">Register Your Factory</CardTitle>
+            <CardDescription className="text-sm sm:text-base mt-3">
               Fill out the details below to register your factory for management system access
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6 sm:p-8">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
                 {/* Factory Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Building className="h-5 w-5 text-primary" />
+                <div className="space-y-4 sm:space-y-6">
+                  <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
+                    <Building className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     Factory Information
                   </h3>
                   <FormField
@@ -216,12 +215,12 @@ export default function FactoryRegistration() {
                 </div>
 
                 {/* Admin Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
+                <div className="space-y-4 sm:space-y-6">
+                  <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
+                    <User className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     Admin Information
                   </h3>
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <FormField
                       control={form.control}
                       name="adminFirstName"
@@ -277,9 +276,9 @@ export default function FactoryRegistration() {
                   />
                   
                   {/* Admin Login Credentials */}
-                  <div className="space-y-4 p-4 bg-muted/20 rounded-lg border">
-                    <h4 className="font-medium text-sm text-muted-foreground flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
+                  <div className="space-y-4 sm:space-y-6 p-4 sm:p-5 bg-muted/20 rounded-lg border">
+                    <h4 className="font-medium text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                      <Lock className="h-3 w-3 sm:h-4 sm:w-4" />
                       Login Credentials (You'll use these after approval)
                     </h4>
                     <FormField
@@ -325,9 +324,9 @@ export default function FactoryRegistration() {
                 </div>
 
                 {/* Address Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-primary" />
+                <div className="space-y-4 sm:space-y-6">
+                  <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
+                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     Factory Address
                   </h3>
                   <FormField
@@ -343,7 +342,7 @@ export default function FactoryRegistration() {
                       </FormItem>
                     )}
                   />
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <FormField
                       control={form.control}
                       name="city"
@@ -371,7 +370,7 @@ export default function FactoryRegistration() {
                       )}
                     />
                   </div>
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <FormField
                       control={form.control}
                       name="country"
@@ -379,7 +378,7 @@ export default function FactoryRegistration() {
                         <FormItem>
                           <FormLabel>Country</FormLabel>
                           <FormControl>
-                            <Input placeholder="USA" {...field} />
+                            <Input placeholder="India" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -392,7 +391,7 @@ export default function FactoryRegistration() {
                         <FormItem>
                           <FormLabel>ZIP Code</FormLabel>
                           <FormControl>
-                            <Input placeholder="12345" {...field} />
+                            <Input placeholder="123456" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -402,20 +401,21 @@ export default function FactoryRegistration() {
                 </div>
 
                 {/* Geofence Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Geofence Location</h3>
-                  <div className="flex gap-2 mb-4">
+                <div className="space-y-4 sm:space-y-6">
+                  <h3 className="text-base sm:text-lg font-semibold">Geofence Location</h3>
+                  <div className="flex gap-2 mb-4 sm:mb-5">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={getCurrentLocation}
-                      className="flex-1"
+                      className="flex-1 text-sm sm:text-base"
                     >
                       <MapPin className="h-4 w-4 mr-2" />
-                      Detect Current Location
+                      <span className="hidden sm:inline">Detect Current Location</span>
+                      <span className="sm:hidden">Detect Location</span>
                     </Button>
                   </div>
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <FormField
                       control={form.control}
                       name="latitude"
@@ -488,16 +488,20 @@ export default function FactoryRegistration() {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-primary hover:shadow-glow transition-all text-foreground"
+                  className="w-full bg-gradient-primary hover:shadow-glow transition-all text-foreground text-sm sm:text-base"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting Registration...
+                      <span className="hidden sm:inline">Submitting Registration...</span>
+                      <span className="sm:hidden">Submitting...</span>
                     </>
                   ) : (
-                    'Submit Factory Registration'
+                    <>
+                      <span className="hidden sm:inline">Submit Factory Registration</span>
+                      <span className="sm:hidden">Submit Registration</span>
+                    </>
                   )}
                 </Button>
               </form>

@@ -485,17 +485,17 @@ export default function EmployeeDashboard() {
       // This batches rapid updates together (e.g., multiple employees submitting at once)
       debounceTimer = setTimeout(async () => {
         console.log('📡 WebSocket: Refreshing dashboard and process status...');
-        // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
-        await loadDashboardData(true);
-        // Refresh quantity status if process and product are selected
-        if (selectedProcess && selectedProduct) {
-          // Add small delay to ensure backend has processed the update
-          // Use skipCache=true to bypass API cache and get fresh data
-          setTimeout(() => {
-            loadProcessQuantityStatus(selectedProcess, true).catch(err => {
-              console.error('Failed to refresh quantity status after WebSocket update:', err);
-            });
-          }, 500);
+      // Use skipCache=true to bypass frontend cache and get fresh data after work entry creation
+      await loadDashboardData(true);
+      // Refresh quantity status if process and product are selected
+      if (selectedProcess && selectedProduct) {
+        // Add small delay to ensure backend has processed the update
+        // Use skipCache=true to bypass API cache and get fresh data
+        setTimeout(() => {
+          loadProcessQuantityStatus(selectedProcess, true).catch(err => {
+            console.error('Failed to refresh quantity status after WebSocket update:', err);
+          });
+        }, 500);
         } else if (selectedProcess) {
           // Refresh process status even if product is not selected
           setTimeout(() => {

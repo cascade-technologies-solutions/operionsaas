@@ -492,17 +492,17 @@ const UserManagement = () => {
               </div>
               {/* Password field - Only show when creating new user, not when editing */}
               {!editingUser && (
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Enter login password"
-                    required
-                  />
-                </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Enter login password"
+                  required
+                />
+              </div>
               )}
 
 

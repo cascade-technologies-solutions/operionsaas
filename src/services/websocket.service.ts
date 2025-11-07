@@ -83,7 +83,7 @@ class WebSocketService {
         setTimeout(() => {
           clearInterval(checkInterval);
           if (this.ws?.readyState === WebSocket.OPEN) {
-            resolve();
+        resolve();
           } else {
             reject(new Error('Connection timeout'));
           }

@@ -315,9 +315,9 @@ export const UserForm: React.FC<UserFormProps> = ({
                     <FormLabel>Password</FormLabel>
                     <FormControl>
                       <Input 
-                        type="password"
+                        type="password" 
                         placeholder={restrictRoleToEmployee ? "Enter password (numbers only, min 4 digits)" : "Enter password (min 8 characters)"}
-                        {...field}
+                        {...field} 
                         inputMode={restrictRoleToEmployee ? "numeric" : "text"}
                         onChange={(e) => {
                           if (restrictRoleToEmployee) {

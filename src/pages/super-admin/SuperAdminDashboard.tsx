@@ -161,7 +161,7 @@ const SuperAdminDashboard = () => {
               <h3 className="text-lg font-semibold mb-4">All Factories</h3>
               <div className="overflow-x-auto -mx-3 sm:mx-0">
                 <div className="inline-block min-w-full align-middle px-3 sm:px-0">
-                  <Table>
+                <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[120px]">Factory Name</TableHead>
