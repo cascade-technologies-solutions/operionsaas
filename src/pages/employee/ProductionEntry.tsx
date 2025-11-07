@@ -182,45 +182,45 @@ export default function ProductionEntry() {
     }
   };
 
-const loadShifts = useCallback(async () => {
-  try {
-    // Primary attempt: dedicated shifts endpoint
-    const response = await factoryService.getShifts();
-    console.log('🔍 ProductionEntry: getShifts response', response);
+  const loadShifts = useCallback(async () => {
+    try {
+      // Primary attempt: dedicated shifts endpoint
+      const response = await factoryService.getShifts();
+      console.log('🔍 ProductionEntry: getShifts response', response);
 
-    const normalizedShifts = normalizeShifts(extractShiftArray(response));
-    console.log('🔍 ProductionEntry: normalized shifts from /factories/shifts', normalizedShifts);
+      const normalizedShifts = normalizeShifts(extractShiftArray(response));
+      console.log('🔍 ProductionEntry: normalized shifts from /factories/shifts', normalizedShifts);
 
-    if (normalizedShifts.length > 0) {
-      console.log('✅ ProductionEntry: using shifts from /factories/shifts', normalizedShifts);
-      setShifts(normalizedShifts);
+      if (normalizedShifts.length > 0) {
+        console.log('✅ ProductionEntry: using shifts from /factories/shifts', normalizedShifts);
+        setShifts(normalizedShifts);
+        return;
+      }
+
+      console.warn('No shifts returned from /factories/shifts, falling back to factory settings');
+    } catch (error) {
+      console.error('Failed to load shifts via /factories/shifts:', error);
+      // If primary endpoint fails, fall through to fallback request
+    }
+
+    if (!user?.factoryId) {
       return;
     }
 
-    console.warn('No shifts returned from /factories/shifts, falling back to factory settings');
-  } catch (error) {
-    console.error('Failed to load shifts via /factories/shifts:', error);
-    // If primary endpoint fails, fall through to fallback request
-  }
+    try {
+      const factoryResponse = await factoryService.getFactory(user.factoryId, { noCache: true });
+      const normalizedShifts = normalizeShifts(
+        extractShiftArray(factoryResponse.data ?? factoryResponse)
+      );
 
-  if (!user?.factoryId) {
-    return;
-  }
-
-  try {
-    const factoryResponse = await factoryService.getFactory(user.factoryId, { noCache: true });
-    const normalizedShifts = normalizeShifts(
-      extractShiftArray(factoryResponse.data ?? factoryResponse)
-    );
-
-    console.log('🔄 ProductionEntry: fallback normalized shifts', normalizedShifts);
-    setShifts(normalizedShifts);
-  } catch (fallbackError) {
-    console.error('Fallback shift load failed:', fallbackError);
-    toast.error(getErrorMessage(fallbackError, 'Failed to load shifts'));
-    setShifts([]);
-  }
-}, [user?.factoryId]);
+      console.log('🔄 ProductionEntry: fallback normalized shifts', normalizedShifts);
+      setShifts(normalizedShifts);
+    } catch (fallbackError) {
+      console.error('Fallback shift load failed:', fallbackError);
+      toast.error(getErrorMessage(fallbackError, 'Failed to load shifts'));
+      setShifts([]);
+    }
+  }, [user?.factoryId]);
 
   // Load initial data
   useEffect(() => {
