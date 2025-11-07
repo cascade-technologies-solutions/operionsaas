@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CameraCapture } from '@/components/CameraCapture';
 import { productionService, productService, machineService, factoryService } from '@/services/api';
@@ -34,6 +34,63 @@ interface ProcessStatus {
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
 
+const extractShiftArray = (payload: unknown): unknown[] => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  const record = payload as Record<string, unknown>;
+
+  if ('shifts' in record && Array.isArray(record.shifts)) {
+    return record.shifts;
+  }
+
+  if ('data' in record) {
+    return extractShiftArray(record.data);
+  }
+
+  if ('settings' in record) {
+    return extractShiftArray(record.settings);
+  }
+
+  return [];
+};
+
+const normalizeShifts = (shiftsData: unknown): Shift[] => {
+  if (!Array.isArray(shiftsData)) {
+    return [];
+  }
+
+  return shiftsData
+    .map((shift) => {
+      if (!shift || typeof shift !== 'object') {
+        return null;
+      }
+
+      const candidate = shift as Record<string, unknown>;
+      const name = candidate.name;
+      const start = candidate.startTime;
+      const end = candidate.endTime;
+      const isActive = candidate.isActive !== false;
+
+      if (typeof name !== 'string' || typeof start !== 'string' || typeof end !== 'string') {
+        return null;
+      }
+
+      return {
+        name,
+        startTime: start,
+        endTime: end,
+        isActive
+      };
+    })
+    .filter((shift): shift is Shift => Boolean(shift?.isActive));
+};
+
 export default function ProductionEntry() {
   const { user } = useAuthStore();
   const [checkinTime, setCheckinTime] = useState<string | null>(null);
@@ -56,18 +113,6 @@ export default function ProductionEntry() {
   const [loadingStages, setLoadingStages] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-
-  // Load initial data
-  useEffect(() => {
-    loadProducts();
-    loadMachines();
-  }, []);
-
-  useEffect(() => {
-    if (user?.factoryId) {
-      loadShifts();
-    }
-  }, [user?.factoryId]);
 
   // Load process stages when product changes
   useEffect(() => {
@@ -93,8 +138,7 @@ export default function ProductionEntry() {
   const loadProducts = async () => {
     try {
       const response = await productService.getProducts();
-      const productsArray = Array.isArray(response.data) ? response.data : [];
-      setProducts(productsArray);
+      setProducts(response.data);
     } catch (error) {
       console.error('Failed to load products:', error);
       toast.error(getErrorMessage(error, 'Failed to load products'));
@@ -118,40 +162,57 @@ export default function ProductionEntry() {
   const loadMachines = async () => {
     try {
       const response = await machineService.getMachines();
-      setMachines(response.data || []);
+      setMachines(response.data);
     } catch (error) {
       console.error('Failed to load machines:', error);
       toast.error(getErrorMessage(error, 'Failed to load machines'));
     }
   };
 
-  const loadShifts = async () => {
-    try {
-      const response = await factoryService.getShifts();
-      const shiftsData = response.data?.shifts ?? response.data;
+const loadShifts = useCallback(async () => {
+  try {
+    // Primary attempt: dedicated shifts endpoint
+    const response = await factoryService.getShifts();
+    const normalizedShifts = normalizeShifts(extractShiftArray(response));
 
-      const rawShifts = Array.isArray(shiftsData) ? (shiftsData as unknown[]) : [];
-      const activeShifts = rawShifts
-        .filter((shift): shift is Shift => {
-          const candidate = shift as Partial<Shift>;
-          return (
-            typeof candidate?.name === 'string' &&
-            typeof candidate?.startTime === 'string' &&
-            typeof candidate?.endTime === 'string'
-          );
-        })
-        .map((shift) => ({
-          ...shift,
-          isActive: shift.isActive !== false
-        }));
-
-      setShifts(activeShifts);
-    } catch (error) {
-      console.error('Failed to load shifts:', error);
-      toast.error(getErrorMessage(error, 'Failed to load shifts'));
-      setShifts([]);
+    if (normalizedShifts.length > 0) {
+      setShifts(normalizedShifts);
+      return;
     }
-  };
+
+    console.warn('No shifts returned from /factories/shifts, falling back to factory settings');
+  } catch (error) {
+    console.error('Failed to load shifts via /factories/shifts:', error);
+    // If primary endpoint fails, fall through to fallback request
+  }
+
+  if (!user?.factoryId) {
+    return;
+  }
+
+  try {
+    const factoryResponse = await factoryService.getFactory(user.factoryId, { noCache: true });
+    const normalizedShifts = normalizeShifts(
+      extractShiftArray(factoryResponse.data ?? factoryResponse)
+    );
+
+    setShifts(normalizedShifts);
+  } catch (fallbackError) {
+    console.error('Fallback shift load failed:', fallbackError);
+    toast.error(getErrorMessage(fallbackError, 'Failed to load shifts'));
+    setShifts([]);
+  }
+}, [user?.factoryId]);
+
+  // Load initial data
+  useEffect(() => {
+    loadProducts();
+    loadMachines();
+  }, []);
+
+  useEffect(() => {
+    loadShifts();
+  }, [loadShifts]);
 
   const loadProcessStatus = async (productId: string, stageId: string) => {
     setLoadingStatus(true);
