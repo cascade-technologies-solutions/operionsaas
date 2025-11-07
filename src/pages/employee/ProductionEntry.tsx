@@ -1,11 +1,4 @@
-*** Begin Patch
-*** Update File: src/pages/employee/ProductionEntry.tsx
-@@
--import { productionService, productService, machineService, factoryService } from '@/services/api';
--import { apiClient } from '@/services/api/client';
-+import { productionService, productService, machineService, factoryService } from '@/services/api';
-+import { apiClient } from '@/services/api/client';
-*** End PatchectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CameraCapture } from '@/components/CameraCapture';
 import { productionService, productService, machineService, factoryService } from '@/services/api';
 import { apiClient } from '@/services/api/client';
