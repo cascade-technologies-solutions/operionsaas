@@ -9,7 +9,10 @@ export const factoryService = {
   },
 
   // Get factory by ID
-  async getFactory(factoryId: string): Promise<{ data: Factory }> {
+  async getFactory(factoryId: string, options?: { noCache?: boolean }): Promise<{ data: Factory }> {
+    if (options?.noCache) {
+      apiClient.clearCache(`/factories/${factoryId}`);
+    }
     const response = await apiClient.get(`/factories/${factoryId}`);
     return response.data || response;
   },

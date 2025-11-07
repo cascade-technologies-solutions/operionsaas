@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CameraCapture } from '@/components/CameraCapture';
 import { productionService, productService, machineService, factoryService } from '@/services/api';
+import { apiClient } from '@/services/api/client';
 import { Product, Machine } from '@/types';
 import { Camera, Loader2, CheckCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -119,9 +120,21 @@ export default function ProductionEntry() {
 
   const loadShifts = async () => {
     try {
-      const response = await factoryService.getShifts();
-      const shiftsArray = response.data?.shifts || [];
-      setShifts(Array.isArray(shiftsArray) ? shiftsArray : []);
+      if (!user?.factoryId) {
+        toast.error('Factory information not found. Please contact your administrator.');
+        setShifts([]);
+        return;
+      }
+
+      // Clear cached shifts so we always get the latest from factory settings
+      apiClient.clearCache('/factories/');
+
+      const response = await factoryService.getFactory(user.factoryId, { noCache: true });
+      const factoryData = response.data || response;
+      const shiftsArray = factoryData?.settings?.shifts || [];
+
+      // Only keep active shifts
+      setShifts(Array.isArray(shiftsArray) ? shiftsArray.filter(shift => shift.isActive !== false) : []);
     } catch (error: any) {
       console.error('Failed to load shifts:', error);
       toast.error('Failed to load shifts');
@@ -374,7 +387,7 @@ export default function ProductionEntry() {
                     <SelectValue placeholder="Select a shift" />
                   </SelectTrigger>
                   <SelectContent>
-                    {shifts.filter(s => s.isActive).map((shift) => (
+                    {shifts.map((shift) => (
                       <SelectItem key={shift.name} value={shift.name}>
                         {shift.name} ({shift.startTime} - {shift.endTime})
                       </SelectItem>
