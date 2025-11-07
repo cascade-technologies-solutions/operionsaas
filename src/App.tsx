@@ -53,7 +53,6 @@ import ProcessStagesSummaryReport from "./pages/supervisor/ProcessStagesSummaryR
 // Employee Pages
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import WorkEntry from "./pages/employee/WorkEntry";
-import ProductionEntry from "./pages/employee/ProductionEntry";
 import EmployeePerformance from "./pages/employee/EmployeePerformance";
 import EmployeeAttendance from "./pages/employee/EmployeeAttendance";
 
@@ -385,11 +384,6 @@ const App = () => {
                     <Route path="/work" element={
                       <ProtectedRoute allowedRoles={['employee']}>
                         <WorkEntry />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/production" element={
-                      <ProtectedRoute allowedRoles={['employee']}>
-                        <ProductionEntry />
                       </ProtectedRoute>
                     } />
                     <Route path="/performance" element={

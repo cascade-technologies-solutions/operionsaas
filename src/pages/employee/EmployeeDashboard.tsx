@@ -324,45 +324,149 @@ export default function EmployeeDashboard() {
         // Load shifts from factory settings
         try {
           const shiftsResponse = await factoryService.getShifts();
+          console.log('🔍 EmployeeDashboard: getShifts response', shiftsResponse);
           
-          // Try multiple possible data structures
-          const shiftsData = shiftsResponse.data?.shifts || shiftsResponse.data || [];
+          // Extract shifts array using robust extraction logic
+          const extractShiftArray = (payload: unknown): unknown[] => {
+            console.log('🔍 EmployeeDashboard: extractShiftArray received payload', payload);
+            if (Array.isArray(payload)) return payload;
+            if (!payload || typeof payload !== 'object') return [];
+            const record = payload as Record<string, unknown>;
+            if ('shifts' in record && Array.isArray(record.shifts)) {
+              console.log('🔍 EmployeeDashboard: extractShiftArray returning record.shifts', record.shifts);
+              return record.shifts;
+            }
+            if ('data' in record) {
+              console.log('🔍 EmployeeDashboard: extractShiftArray recursing into record.data', record.data);
+              return extractShiftArray(record.data);
+            }
+            if ('settings' in record) {
+              console.log('🔍 EmployeeDashboard: extractShiftArray recursing into record.settings', record.settings);
+              return extractShiftArray(record.settings);
+            }
+            return [];
+          };
           
-          const activeShifts = Array.isArray(shiftsData) ? shiftsData.filter((shift: any) => shift.isActive !== false) : [];
+          // Normalize shifts to ensure proper structure
+          const normalizeShifts = (shiftsData: unknown): Shift[] => {
+            console.log('🔍 EmployeeDashboard: normalizeShifts received', shiftsData);
+            if (!Array.isArray(shiftsData)) return [];
+            return shiftsData
+              .map((shift) => {
+                console.log('🔍 EmployeeDashboard: normalizing shift entry', shift);
+                if (!shift || typeof shift !== 'object') return null;
+                const candidate = shift as Record<string, unknown>;
+                const name = candidate.name;
+                const start = candidate.startTime;
+                const end = candidate.endTime;
+                const isActive = candidate.isActive !== false;
+                if (typeof name !== 'string' || typeof start !== 'string' || typeof end !== 'string') return null;
+                return { name, startTime: start, endTime: end, isActive };
+              })
+              .filter((shift): shift is Shift => {
+                const keep = Boolean(shift?.isActive);
+                console.log('🔍 EmployeeDashboard: shift filtered result', shift, keep);
+                return keep;
+              });
+          };
           
-          if (activeShifts.length > 0) {
-            setShifts(activeShifts);
+          const normalizedShifts = normalizeShifts(extractShiftArray(shiftsResponse));
+          console.log('🔍 EmployeeDashboard: normalized shifts', normalizedShifts);
+          
+          if (normalizedShifts.length > 0) {
+            console.log('✅ EmployeeDashboard: using shifts from factory settings', normalizedShifts);
+            setShifts(normalizedShifts);
             
             // Set default shift only if no saved selection exists
             if (!getSelectionFromStorage('employee_selected_shift')) {
-              setSelectedShift(activeShifts[0].name);
+              setSelectedShift(normalizedShifts[0].name);
             }
           } else {
-            // If no shifts are configured, use default shifts
-            const defaultShifts = [
-              { name: 'Morning', startTime: '08:00 AM', endTime: '04:00 PM', isActive: true },
-              { name: 'Evening', startTime: '04:00 PM', endTime: '12:00 AM', isActive: true },
-              { name: 'Night', startTime: '12:00 AM', endTime: '08:00 AM', isActive: true }
-            ];
-            setShifts(defaultShifts);
-            
-            // Set default shift only if no saved selection exists
-            if (!getSelectionFromStorage('employee_selected_shift')) {
-              setSelectedShift('Morning');
+            console.warn('⚠️ EmployeeDashboard: No shifts found, trying fallback to factory data');
+            // Fallback: try to get shifts from factory settings directly
+            if (user?.factoryId) {
+              try {
+                const factoryResponse = await factoryService.getFactory(user.factoryId, { noCache: true });
+                const fallbackShifts = normalizeShifts(extractShiftArray(factoryResponse.data ?? factoryResponse));
+                console.log('🔄 EmployeeDashboard: fallback normalized shifts', fallbackShifts);
+                if (fallbackShifts.length > 0) {
+                  setShifts(fallbackShifts);
+                  if (!getSelectionFromStorage('employee_selected_shift')) {
+                    setSelectedShift(fallbackShifts[0].name);
+                  }
+                } else {
+                  throw new Error('No shifts found in factory settings');
+                }
+              } catch (fallbackError) {
+                console.error('Fallback shift load failed:', fallbackError);
+                // Use default shifts as last resort
+                const defaultShifts = [
+                  { name: 'Morning', startTime: '08:00 AM', endTime: '04:00 PM', isActive: true },
+                  { name: 'Evening', startTime: '04:00 PM', endTime: '12:00 AM', isActive: true },
+                  { name: 'Night', startTime: '12:00 AM', endTime: '08:00 AM', isActive: true }
+                ];
+                setShifts(defaultShifts);
+                if (!getSelectionFromStorage('employee_selected_shift')) {
+                  setSelectedShift('Morning');
+                }
+              }
             }
           }
         } catch (error: unknown) {
           console.error('❌ Failed to load shifts in employee dashboard:', error);
           console.error('❌ Error response:', (error as any)?.response);
           
-          // Set default shifts if factory data fails to load
+          // Try fallback to factory data
+          if (user?.factoryId) {
+            try {
+              const factoryResponse = await factoryService.getFactory(user.factoryId, { noCache: true });
+              const extractShiftArray = (payload: unknown): unknown[] => {
+                if (Array.isArray(payload)) return payload;
+                if (!payload || typeof payload !== 'object') return [];
+                const record = payload as Record<string, unknown>;
+                if ('shifts' in record && Array.isArray(record.shifts)) return record.shifts;
+                if ('data' in record) return extractShiftArray(record.data);
+                if ('settings' in record) return extractShiftArray(record.settings);
+                return [];
+              };
+              const normalizeShifts = (shiftsData: unknown): Shift[] => {
+                if (!Array.isArray(shiftsData)) return [];
+                return shiftsData
+                  .map((shift) => {
+                    if (!shift || typeof shift !== 'object') return null;
+                    const candidate = shift as Record<string, unknown>;
+                    const name = candidate.name;
+                    const start = candidate.startTime;
+                    const end = candidate.endTime;
+                    const isActive = candidate.isActive !== false;
+                    if (typeof name !== 'string' || typeof start !== 'string' || typeof end !== 'string') return null;
+                    return { name, startTime: start, endTime: end, isActive };
+                  })
+                  .filter((shift): shift is Shift => Boolean(shift?.isActive));
+              };
+              const fallbackShifts = normalizeShifts(extractShiftArray(factoryResponse.data ?? factoryResponse));
+              if (fallbackShifts.length > 0) {
+                setShifts(fallbackShifts);
+                if (!getSelectionFromStorage('employee_selected_shift')) {
+                  setSelectedShift(fallbackShifts[0].name);
+                }
+                return;
+              }
+            } catch (fallbackError) {
+              console.error('Fallback shift load also failed:', fallbackError);
+            }
+          }
+          
+          // Set default shifts if all attempts fail
           const defaultShifts = [
             { name: 'Morning', startTime: '08:00 AM', endTime: '04:00 PM', isActive: true },
             { name: 'Evening', startTime: '04:00 PM', endTime: '12:00 AM', isActive: true },
             { name: 'Night', startTime: '12:00 AM', endTime: '08:00 AM', isActive: true }
           ];
           setShifts(defaultShifts);
-          setSelectedShift('Morning');
+          if (!getSelectionFromStorage('employee_selected_shift')) {
+            setSelectedShift('Morning');
+          }
         }
         
         // Load today's attendance data for summary display

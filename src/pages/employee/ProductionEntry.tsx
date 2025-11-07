@@ -105,6 +105,7 @@ const normalizeShifts = (shiftsData: unknown): Shift[] => {
 };
 
 export default function ProductionEntry() {
+  console.log('🚀 ProductionEntry component mounted');
   const { user } = useAuthStore();
   const [checkinTime, setCheckinTime] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
